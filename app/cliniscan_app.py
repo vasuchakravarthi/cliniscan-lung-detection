@@ -77,4 +77,5 @@ def load_classification_model():
         return None
     
     try:
-        model = resnet50(weights=
+        model = resnet50(weights=None)  
+
