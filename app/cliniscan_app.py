@@ -82,12 +82,14 @@ def load_classification_model():
             st.error("⚠️ Model file not found")
             return None
         
-        model.load_state_dict(torch.load(model_path, map_location="cpu"))
+        # Fix: Add weights_only=False for PyTorch 2.6+
+        model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=False))
         model.eval()
         return model
     except Exception as e:
         st.error(f"Error: {e}")
         return None
+
 
 @st.cache_resource
 def load_detection_model():
