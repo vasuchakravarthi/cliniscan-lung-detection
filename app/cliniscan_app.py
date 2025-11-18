@@ -68,18 +68,19 @@ det_ready, clf_ready = download_models()
 # -----------------------------------------------------------------------------
 @st.cache_resource
 def load_classification_model():
-    """Load EfficientNet classification model"""
+    """Load EfficientNet-B0 classification model"""
     if not clf_ready:
         return None
     
     try:
         from torchvision.models import efficientnet_b0
         
-        # Load EfficientNet-B0 instead of ResNet50
+        # Create EfficientNet-B0 model (NOT ResNet50!)
         model = efficientnet_b0(weights=None)
         
-        # Modify the classifier head for 3 classes
-        model.classifier[1] = torch.nn.Linear(model.classifier[1].in_features, 3)
+        # Modify classifier head for 3 classes
+        num_features = model.classifier[1].in_features
+        model.classifier[1] = torch.nn.Linear(num_features, 3)
         
         model_path = "models/classification/best_clf_model.pth"
         
@@ -90,16 +91,21 @@ def load_classification_model():
         # Load checkpoint
         checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
         
-        # Extract model weights from 'model' key
+        # Extract model state dict from checkpoint
         if isinstance(checkpoint, dict) and 'model' in checkpoint:
+            # The checkpoint contains 'model' key with the state dict
             model.load_state_dict(checkpoint['model'])
         else:
+            # Fallback: checkpoint is already a state dict
             model.load_state_dict(checkpoint)
         
         model.eval()
         return model
+        
     except Exception as e:
         st.error(f"Error loading classification model: {e}")
+        import traceback
+        st.error(traceback.format_exc())
         return None
 
 @st.cache_resource
