@@ -66,6 +66,36 @@ det_ready, clf_ready = download_models()
 # -----------------------------------------------------------------------------
 # 1️⃣ Load Models
 # -----------------------------------------------------------------------------
+@st.cache_resource
+def load_classification_model():
+    """Load ResNet50 classification model"""
+    if not clf_ready:
+        return None
+    
+    try:
+        model = resnet50(weights=None)
+        model.fc = torch.nn.Linear(model.fc.in_features, 3)
+        model_path = "models/classification/best_clf_model.pth"
+        
+        if not os.path.exists(model_path):
+            st.error("⚠️ Model file not found")
+            return None
+        
+        # Load checkpoint (contains 'model', 'optimizer', etc.)
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+        
+        # Extract only the model weights from 'model' key
+        if isinstance(checkpoint, dict) and 'model' in checkpoint:
+            model.load_state_dict(checkpoint['model'])
+        else:
+            # Fallback: if it's already just state_dict
+            model.load_state_dict(checkpoint)
+        
+        model.eval()
+        return model
+    except Exception as e:
+        st.error(f"Error: {e}")
+        return None
 
 @st.cache_resource
 def load_classification_model():
@@ -82,13 +112,22 @@ def load_classification_model():
             st.error("⚠️ Model file not found")
             return None
         
-        # Fix: Add weights_only=False for PyTorch 2.6+
-        model.load_state_dict(torch.load(model_path, map_location="cpu", weights_only=False))
+        # Load checkpoint (contains 'model', 'optimizer', etc.)
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+        
+        # Extract only the model weights from 'model' key
+        if isinstance(checkpoint, dict) and 'model' in checkpoint:
+            model.load_state_dict(checkpoint['model'])
+        else:
+            # Fallback: if it's already just state_dict
+            model.load_state_dict(checkpoint)
+        
         model.eval()
         return model
     except Exception as e:
         st.error(f"Error: {e}")
         return None
+
 
 
 @st.cache_resource
