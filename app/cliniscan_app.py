@@ -68,33 +68,38 @@ det_ready, clf_ready = download_models()
 # -----------------------------------------------------------------------------
 @st.cache_resource
 def load_classification_model():
-    """Load ResNet50 classification model"""
+    """Load EfficientNet classification model"""
     if not clf_ready:
         return None
     
     try:
-        model = resnet50(weights=None)
-        model.fc = torch.nn.Linear(model.fc.in_features, 3)
+        from torchvision.models import efficientnet_b0
+        
+        # Load EfficientNet-B0 instead of ResNet50
+        model = efficientnet_b0(weights=None)
+        
+        # Modify the classifier head for 3 classes
+        model.classifier[1] = torch.nn.Linear(model.classifier[1].in_features, 3)
+        
         model_path = "models/classification/best_clf_model.pth"
         
         if not os.path.exists(model_path):
             st.error("⚠️ Model file not found")
             return None
         
-        # Load checkpoint (contains 'model', 'optimizer', etc.)
+        # Load checkpoint
         checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
         
-        # Extract only the model weights from 'model' key
+        # Extract model weights from 'model' key
         if isinstance(checkpoint, dict) and 'model' in checkpoint:
             model.load_state_dict(checkpoint['model'])
         else:
-            # Fallback: if it's already just state_dict
             model.load_state_dict(checkpoint)
         
         model.eval()
         return model
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error loading classification model: {e}")
         return None
 
 @st.cache_resource
@@ -163,7 +168,7 @@ def generate_gradcam(model, img_tensor):
     
     try:
         model.eval()
-        feature_extractor = create_feature_extractor(model, {"layer4.2": "feat"})
+        feature_extractor = create_feature_extractor(model, {"features.8": "feat"})
         
         with torch.no_grad():
             out = feature_extractor(img_tensor.unsqueeze(0))
