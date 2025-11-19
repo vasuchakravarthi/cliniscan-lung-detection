@@ -25,12 +25,12 @@ st.set_page_config(
 # Custom CSS for vibrant, modern medical UI
 st.markdown("""
 <style>
-    /* Main background gradient - Soft Clinical White with hint of blue */
+    /* Main background */
     .stApp {
         background: linear-gradient(135deg, #f8fbff 0%, #e8f4f8 50%, #f0f7ff 100%);
     }
     
-    /* Header styling - Medical Blue gradient */
+    /* Header */
     .main-header {
         background: linear-gradient(135deg, #0077be 0%, #005a8d 50%, #003d5c 100%);
         padding: 2rem;
@@ -50,10 +50,9 @@ st.markdown("""
     .main-header p {
         font-size: 1.1rem;
         margin-top: 0.5rem;
-        opacity: 0.95;
     }
     
-    /* Stats cards - Distinct professional colors */
+    /* Stats cards */
     .stat-card {
         background: linear-gradient(135deg, #0077be 0%, #005a8d 100%);
         padding: 1.5rem;
@@ -75,17 +74,9 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(124,58,237,0.25);
     }
     
-    .stat-card.purple:hover {
-        box-shadow: 0 12px 30px rgba(124,58,237,0.35);
-    }
-    
     .stat-card.cyan {
         background: linear-gradient(135deg, #00b4d8 0%, #0096c7 100%);
         box-shadow: 0 8px 20px rgba(0,180,216,0.25);
-    }
-    
-    .stat-card.cyan:hover {
-        box-shadow: 0 12px 30px rgba(0,180,216,0.35);
     }
     
     .stat-card .emoji {
@@ -101,11 +92,10 @@ st.markdown("""
     
     .stat-card p {
         font-size: 0.9rem;
-        opacity: 0.9;
         margin: 0;
     }
     
-    /* Alert boxes */
+    /* Alerts */
     .info-alert {
         background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
         border-left: 5px solid #0077be;
@@ -128,10 +118,6 @@ st.markdown("""
         margin: 1rem 0;
         box-shadow: 0 4px 12px rgba(245,158,11,0.15);
         color: #78350f;
-    }
-    
-    .warning-alert strong {
-        color: #92400e;
     }
     
     /* Result cards */
@@ -157,12 +143,9 @@ st.markdown("""
     .result-card h2 {
         color: #0077be;
         margin-top: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
     }
     
-    /* Badges - Modern medical status colors */
+    /* Badges */
     .badge {
         display: inline-block;
         padding: 0.5rem 1.5rem;
@@ -184,7 +167,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(239,68,68,0.3);
     }
     
-    /* Confidence display */
+    /* Confidence box */
     .confidence-box {
         background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
         padding: 1.5rem;
@@ -203,7 +186,7 @@ st.markdown("""
         background-clip: text;
     }
     
-    /* Detection list */
+    /* Detection items - FIXED */
     .detection-item {
         background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
         padding: 1rem;
@@ -223,6 +206,11 @@ st.markdown("""
         transition: all 0.3s ease;
     }
     
+    .detection-item strong {
+        color: #1e293b !important;
+        font-size: 1rem;
+    }
+    
     .detection-number {
         background: linear-gradient(135deg, #00b4d8 0%, #0096c7 100%);
         color: white;
@@ -236,7 +224,7 @@ st.markdown("""
         margin-right: 1rem;
     }
     
-    /* Disclaimer - Medical Warning Red */
+    /* Disclaimer */
     .disclaimer {
         background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
         border-left: 8px solid #ef4444;
@@ -252,7 +240,7 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Sidebar styling */
+    /* Sidebar */
     [data-testid="stSidebar"] {
         background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
     }
@@ -265,17 +253,6 @@ st.markdown("""
         margin-bottom: 1.5rem;
         text-align: center;
         box-shadow: 0 4px 12px rgba(0,119,190,0.2);
-    }
-    
-    .sidebar-header h2 {
-        margin: 0;
-        font-size: 1.3rem;
-    }
-    
-    .sidebar-header p {
-        margin: 0.5rem 0 0 0;
-        font-size: 0.9rem;
-        opacity: 0.9;
     }
     
     .sidebar-card {
@@ -299,44 +276,44 @@ st.markdown("""
         line-height: 1.8;
     }
     
-    /* Classification Classes - FIXED VISIBILITY */
-    .sidebar-card .class-item {
+    /* Classification Classes - FIXED */
+    .class-item {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.75rem;
         margin: 0.5rem 0;
         padding: 0.75rem;
         border-radius: 0.5rem;
     }
     
-    .sidebar-card .class-item.abnormal {
+    .class-item.abnormal-class {
         background: #fee2e2;
-        border: 1px solid #ef4444;
+        border: 2px solid #ef4444;
     }
     
-    .sidebar-card .class-item.abnormal strong {
-        color: #991b1b !important;
-        font-weight: 700;
+    .class-item.abnormal-class span {
+        color: #7f1d1d;
+        font-size: 0.95rem;
     }
     
-    .sidebar-card .class-item.normal {
+    .class-item.normal-class {
         background: #d1fae5;
-        border: 1px solid #10b981;
+        border: 2px solid #10b981;
     }
     
-    .sidebar-card .class-item.normal strong {
-        color: #065f46 !important;
-        font-weight: 700;
+    .class-item.normal-class span {
+        color: #064e3b;
+        font-size: 0.95rem;
     }
     
-    .sidebar-card .class-dot {
-        width: 12px;
-        height: 12px;
+    .class-dot {
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         flex-shrink: 0;
     }
     
-    /* Gradcam section */
+    /* Gradcam */
     .gradcam-section {
         background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
         padding: 1.5rem;
@@ -355,19 +332,11 @@ st.markdown("""
         color: #4c1d95;
     }
     
-    /* Hide Streamlit branding */
+    /* Hide branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Custom metric styling */
-    [data-testid="stMetricValue"] {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #0077be;
-    }
 </style>
 """, unsafe_allow_html=True)
-
 
 
 # -----------------------------------------------------------------------------
