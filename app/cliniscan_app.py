@@ -12,18 +12,289 @@ from torchvision.models.feature_extraction import create_feature_extractor
 import os
 import gdown
 
-# Page configuration
+-----------------------------------------------------------------------------
+🎨 CUSTOM STYLING
+-----------------------------------------------------------------------------
+
 st.set_page_config(
-    page_title="🩻 CliniScan - Lung Abnormality Detection",
+    page_title="🩻 CliniScan - AI Lung Detection",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# -----------------------------------------------------------------------------
-# 🔽 GOOGLE DRIVE MODEL DOWNLOAD
-# -----------------------------------------------------------------------------
+Custom CSS for vibrant, modern medical UI
+st.markdown("""
+<style>
+    /* Main background gradient */
+    .stApp {
+        background: linear-gradient(135deg, #e0f7fa 0%, #e3f2fd 50%, #e8eaf6 100%);
+    }
+    
+    /* Header styling */
+    .main-header {
+        background: linear-gradient(135deg, #00acc1 0%, #1976d2 50%, #3949ab 100%);
+        padding: 2rem;
+        border-radius: 1rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        margin-bottom: 2rem;
+    }
+    
+    .main-header h1 {
+        font-size: 2.5rem;
+        margin: 0;
+        font-weight: 700;
+    }
+    
+    .main-header p {
+        font-size: 1.1rem;
+        margin-top: 0.5rem;
+        opacity: 0.95;
+    }
+    
+    /* Stats cards */
+    .stat-card {
+        background: linear-gradient(135deg, #00acc1 0%, #1976d2 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        color: white;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        transition: transform 0.3s ease;
+        margin: 0.5rem 0;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    }
+    
+    .stat-card.purple {
+        background: linear-gradient(135deg, #3949ab 0%, #5e35b1 100%);
+    }
+    
+    .stat-card.cyan {
+        background: linear-gradient(135deg, #00acc1 0%, #00bcd4 100%);
+    }
+    
+    .stat-card .emoji {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card h3 {
+        font-size: 1.3rem;
+        margin: 0.5rem 0;
+        font-weight: 600;
+    }
+    
+    .stat-card p {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+    
+    /* Alert boxes */
+    .info-alert {
+        background: linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%);
+        border-left: 5px solid #1976d2;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .warning-alert {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        border-left: 5px solid #f57c00;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    /* Result cards */
+    .result-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        margin: 1rem 0;
+        border: 2px solid #e0e0e0;
+    }
+    
+    .result-card.classification {
+        border-color: #9c27b0;
+        background: linear-gradient(135deg, #ffffff 0%, #f3e5f5 100%);
+    }
+    
+    .result-card.detection {
+        border-color: #00bcd4;
+        background: linear-gradient(135deg, #ffffff 0%, #e0f7fa 100%);
+    }
+    
+    .result-card h2 {
+        color: #1976d2;
+        margin-top: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    /* Badges */
+    .badge {
+        display: inline-block;
+        padding: 0.5rem 1.5rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        font-size: 1.2rem;
+        margin: 1rem 0;
+    }
+    
+    .badge.normal {
+        background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(76,175,80,0.4);
+    }
+    
+    .badge.abnormal {
+        background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(244,67,54,0.4);
+    }
+    
+    /* Confidence display */
+    .confidence-box {
+        background: linear-gradient(135deg, #e3f2fd 0%, #c5cae9 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        text-align: center;
+        margin: 1rem 0;
+        border: 2px solid #1976d2;
+    }
+    
+    .confidence-box .value {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #1976d2 0%, #3949ab 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    /* Detection list */
+    .detection-item {
+        background: linear-gradient(135deg, #f5f5f5 0%, #e3f2fd 100%);
+        padding: 1rem;
+        border-radius: 0.75rem;
+        margin: 0.75rem 0;
+        border: 2px solid #00bcd4;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+    
+    .detection-item:hover {
+        border-color: #0097a7;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    }
+    
+    .detection-number {
+        background: linear-gradient(135deg, #00acc1 0%, #1976d2 100%);
+        color: white;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        margin-right: 1rem;
+    }
+    
+    /* Disclaimer */
+    .disclaimer {
+        background: linear-gradient(135deg, #ffebee 0%, #fbe9e7 100%);
+        border-left: 8px solid #d32f2f;
+        padding: 2rem;
+        border-radius: 1rem;
+        text-align: center;
+        margin: 2rem 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .disclaimer .icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ffffff 0%, #e3f2fd 100%);
+    }
+    
+    .sidebar-header {
+        background: linear-gradient(135deg, #1976d2 0%, #3949ab 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        color: white;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .sidebar-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        margin: 1rem 0;
+        border: 2px solid #00bcd4;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .sidebar-card h3 {
+        color: #00acc1;
+        margin-top: 0;
+    }
+    
+    /* Upload section */
+    .upload-section {
+        background: white;
+        padding: 3rem;
+        border-radius: 1rem;
+        border: 3px dashed #00bcd4;
+        text-align: center;
+        margin: 2rem 0;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    /* Gradcam section */
+    .gradcam-section {
+        background: linear-gradient(135deg, #ffffff 0%, #ede7f6 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        border: 2px solid #673ab7;
+        margin-top: 1.5rem;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Custom metric styling */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Replace these with your actual Google Drive file IDs
+-----------------------------------------------------------------------------
+🔽 GOOGLE DRIVE MODEL DOWNLOAD
+-----------------------------------------------------------------------------
+
+Replace these with your actual Google Drive file IDs
 DETECTION_MODEL_ID = "1RN903UCBYkkY9JftW9NauOZbCdFTLc1a"
 CLASSIFICATION_MODEL_ID = "1e2xHBMKshkPcaUDJSLLF-dJe2ohQIhk_"
 
@@ -36,7 +307,6 @@ def download_models():
     det_path = "models/detection/best.pt"
     clf_path = "models/classification/best_clf_model.pth"
     
-    # Download detection model
     if not os.path.exists(det_path):
         with st.spinner("⏳ Downloading detection model (52 MB)... First run only."):
             try:
@@ -47,7 +317,6 @@ def download_models():
                 st.error(f"❌ Error: {e}")
                 return False, False
     
-    # Download classification model
     if not os.path.exists(clf_path):
         with st.spinner("⏳ Downloading classification model (129 MB)..."):
             try:
@@ -60,17 +329,15 @@ def download_models():
     
     return True, True
 
-# Download models
 det_ready, clf_ready = download_models()
 
-# -----------------------------------------------------------------------------
-# 1️⃣ Load Models
-# -----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+🤖 MODEL DEFINITIONS
+-----------------------------------------------------------------------------
 
-# Define EfficientNet-B3 Classifier (EXACTLY as in your training)
 class EfficientNetClassifier(nn.Module):
-    def __init__(self, num_classes=2, dropout=0.3):
-        super().__init__()
+    def init(self, num_classes=2, dropout=0.3):
+        super().init()
         self.model = timm.create_model('efficientnet_b3', pretrained=False, num_classes=num_classes, drop_rate=dropout)
     
     def forward(self, x):
@@ -78,29 +345,22 @@ class EfficientNetClassifier(nn.Module):
 
 @st.cache_resource
 def load_classification_model():
-    """Load EfficientNet-B3 classification model"""
     if not clf_ready:
         return None
     
     try:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        # Create model (EXACTLY as in training)
         model = EfficientNetClassifier(num_classes=2, dropout=0.3).to(device)
-        
         model_path = "models/classification/best_clf_model.pth"
         
         if not os.path.exists(model_path):
             st.error("⚠️ Model file not found")
             return None
         
-        # Load checkpoint (weights_only=False as in your code)
         checkpoint = torch.load(model_path, map_location=device, weights_only=False)
         
-        # Extract model state dict from 'model' key (as in your training)
         if isinstance(checkpoint, dict) and 'model' in checkpoint:
             model.load_state_dict(checkpoint['model'])
-            st.success(f"✅ Model loaded! Accuracy: {checkpoint['acc']:.2f}%")
         else:
             model.load_state_dict(checkpoint)
         
@@ -109,13 +369,10 @@ def load_classification_model():
         
     except Exception as e:
         st.error(f"Error loading classification model: {e}")
-        import traceback
-        st.error(traceback.format_exc())
         return None
 
 @st.cache_resource
 def load_detection_model():
-    """Load YOLOv8 detection model"""
     if not det_ready:
         return None
     
@@ -131,16 +388,14 @@ def load_detection_model():
         st.error(f"Error: {e}")
         return None
 
-# Load models
 clf_model = load_classification_model()
 det_model = load_detection_model()
 
-# -----------------------------------------------------------------------------
-# 2️⃣ Grad-CAM for EfficientNet-B3
-# -----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+🔥 GRAD-CAM
+-----------------------------------------------------------------------------
 
 def generate_gradcam(model, img_tensor):
-    """Generate Grad-CAM heatmap for EfficientNet-B3"""
     if model is None:
         return None, None
     
@@ -148,11 +403,9 @@ def generate_gradcam(model, img_tensor):
         device = next(model.parameters()).device
         model.eval()
         
-        # For EfficientNet-B3, use the last conv layer (conv_head)
-        # Access the inner model: model.model (timm model)
         feature_extractor = create_feature_extractor(
             model.model, 
-            {"conv_head": "feat"}  # EfficientNet-B3 layer name
+            {"conv_head": "feat"}
         )
         
         with torch.no_grad():
@@ -161,9 +414,8 @@ def generate_gradcam(model, img_tensor):
             preds = model(img_tensor)
             pred_class = preds.argmax(dim=1).item()
         
-        # Generate heatmap
         feat_map = out["feat"].squeeze().detach().mean(dim=0).cpu().numpy()
-        heatmap = cv2.resize(feat_map, (512, 512))  # Your training size
+        heatmap = cv2.resize(feat_map, (512, 512))
         heatmap = np.maximum(heatmap, 0)
         if np.max(heatmap) > 0:
             heatmap /= np.max(heatmap)
@@ -173,73 +425,141 @@ def generate_gradcam(model, img_tensor):
         st.error(f"Grad-CAM error: {e}")
         return None, None
 
-# -----------------------------------------------------------------------------
-# 3️⃣ UI
-# -----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+🎨 UI COMPONENTS
+-----------------------------------------------------------------------------
 
-st.title("🩻 CliniScan: AI-Powered Lung Abnormality Detection")
-
+Header
 st.markdown("""
-Upload a **Chest X-ray** image to:
-- 🎯 Detect **14 lung abnormalities** with bounding boxes (YOLOv8-M, mAP: 0.4305)
-- 📊 Get **overall classification**: Abnormal vs Normal (EfficientNet-B3, Acc: 95.20%)
-- 🧠 View **Grad-CAM heatmap** showing model focus areas
+<div class="main-header">
+    <h1>🩻 CliniScan: AI-Powered Lung Abnormality Detection</h1>
+    <p>Upload a <strong>Chest X-ray</strong> image to detect abnormalities and classify diagnosis</p>
+</div>
+""", unsafe_allow_html=True)
 
-**Note**: Classification trained on 512×512 images, optimized for chest X-ray analysis.
-""")
+Stats Cards
+col1, col2, col3 = st.columns(3)
 
-with st.sidebar:
-    st.header("ℹ️ About CliniScan")
+with col1:
     st.markdown("""
-    **14 Detectable Abnormalities**:
-    1. Aortic enlargement
-    2. Atelectasis
-    3. Calcification
-    4. Cardiomegaly
-    5. Consolidation
-    6. ILD
-    7. Infiltration
-    8. Lung Opacity
-    9. Nodule/Mass
-    10. Other lesion
-    11. Pleural effusion
-    12. Pleural thickening
-    13. Pneumothorax
-    14. Pulmonary fibrosis
+    <div class="stat-card cyan">
+        <div class="emoji">🎯</div>
+        <h3>14 Abnormalities</h3>
+        <p>YOLOv8-M Detection (mAP: 0.4305)</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div class="stat-card">
+        <div class="emoji">📊</div>
+        <h3>95.20% Accuracy</h3>
+        <p>EfficientNet-B3 Classification</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown("""
+    <div class="stat-card purple">
+        <div class="emoji">🧠</div>
+        <h3>Grad-CAM</h3>
+        <p>Visual AI Focus Areas</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+Info Alert
+st.markdown("""
+<div class="info-alert">
+    <strong>ℹ️ Note:</strong> Classification trained on 512×512 images, optimized for chest X-ray analysis.
+</div>
+""", unsafe_allow_html=True)
+
+Sidebar
+with st.sidebar:
+    st.markdown("""
+    <div class="sidebar-header">
+        <h2>ℹ️ About CliniScan</h2>
+        <p>Advanced AI diagnostic assistance</p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    **Classification Classes**:
-    - Abnormal (Class 0)
-    - Normal (Class 1)
+    st.markdown("""
+    <div class="sidebar-card">
+        <h3>🩺 14 Detectable Abnormalities</h3>
+        <ol style="font-size: 0.9rem; line-height: 1.8;">
+            <li>Aortic enlargement</li>
+            <li>Atelectasis</li>
+            <li>Calcification</li>
+            <li>Cardiomegaly</li>
+            <li>Consolidation</li>
+            <li>ILD</li>
+            <li>Infiltration</li>
+            <li>Lung Opacity</li>
+            <li>Nodule/Mass</li>
+            <li>Other lesion</li>
+            <li>Pleural effusion</li>
+            <li>Pleural thickening</li>
+            <li>Pneumothorax</li>
+            <li>Pulmonary fibrosis</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
     
-    **⚠️ Disclaimer**: Educational purposes only.
-    """)
+    st.markdown("""
+    <div class="sidebar-card">
+        <h3>📋 Classification Classes</h3>
+        <div style="margin: 1rem 0;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; padding: 0.5rem; background: #ffebee; border-radius: 0.5rem; border: 1px solid #ef5350;">
+                <div style="width: 12px; height: 12px; background: #ef5350; border-radius: 50%;"></div>
+                <strong>Abnormal</strong> (Class 0)
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0; padding: 0.5rem; background: #e8f5e9; border-radius: 0.5rem; border: 1px solid #66bb6a;">
+                <div style="width: 12px; height: 12px; background: #66bb6a; border-radius: 50%;"></div>
+                <strong>Normal</strong> (Class 1)
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div class="warning-alert">
+        <strong>⚠️ Disclaimer:</strong> Educational purposes only.
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.markdown("**Developer**: Vasu Chakravarthi")
-    st.markdown("**Institution**: SRKR Engineering College")
-    st.markdown("[GitHub Repository](https://github.com/vasuchakravarthi/cliniscan-lung-detection)")
+    st.markdown("Developer: Vasu Chakravarthi")
+    st.markdown("Institution: SRKR Engineering College")
+    st.markdown("🔗 GitHub Repository")
 
-st.markdown("---")
+File Upload
+st.markdown("<br>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("📤 Upload Chest X-ray (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
-    st.subheader("📷 Uploaded X-ray")
-    st.image(image, use_column_width=True)
+    
+    st.markdown("<h2 style='color: #1976d2;'>📷 Uploaded X-ray</h2>", unsafe_allow_html=True)
+    st.image(image, use_container_width=True)
     
     if clf_model is None or det_model is None:
         st.error("⚠️ Models not loaded. Check Google Drive file IDs.")
         st.stop()
     
-    st.markdown("---")
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
     col1, col2 = st.columns(2)
     
+    # === CLASSIFICATION ===
     with col1:
-        st.subheader("🔍 Classification")
+        st.markdown("""
+        <div class="result-card classification">
+            <h2>🧠 AI Classification</h2>
+        </div>
+        """, unsafe_allow_html=True)
         
-        # Preprocessing (EXACTLY as in your training: 512x512)
         transform = transforms.Compose([
-            transforms.Resize((512, 512)),  # Your training size
+            transforms.Resize((512, 512)),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -253,20 +573,48 @@ if uploaded_file:
             probs = torch.nn.functional.softmax(preds, dim=1)
             pred_class = torch.argmax(probs).item()
         
-        # Class names (0: Abnormal, 1: Normal as in your training)
         class_names = ["Abnormal", "Normal"]
+        badge_class = "normal" if pred_class == 1 else "abnormal"
         
-        st.markdown(f"### Predicted: **{class_names[pred_class]}**")
-        st.markdown(f"### Confidence: **{probs[0][pred_class]:.2%}**")
+        st.markdown(f"""
+        <div style="text-align: center; margin: 1.5rem 0;">
+            <p style="margin: 0; color: #666;">Predicted Class:</p>
+            <div class="badge {badge_class}">{class_names[pred_class]}</div>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.markdown("#### Probabilities:")
+        st.markdown(f"""
+        <div class="confidence-box">
+            <p style="margin: 0; color: #1976d2; font-weight: 600;">Confidence Score</p>
+            <div class="value">{probs[0][pred_class]:.2%}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<h3 style='color: #1976d2; margin-top: 2rem;'>📊 Probability Distribution</h3>", unsafe_allow_html=True)
         for i, name in enumerate(class_names):
-            st.write(f"{name}: {probs[0][i].item():.2%}")
-            st.progress(float(probs[0][i].item()))
+            prob_val = float(probs[0][i].item())
+            color = "#66bb6a" if i == 1 else "#ef5350"
+            st.markdown(f"""
+            <div style="margin: 1rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div style="width: 12px; height: 12px; background: {color}; border-radius: 50%;"></div>
+                        <strong>{name}</strong>
+                    </span>
+                    <span style="background: #f5f5f5; padding: 0.25rem 0.75rem; border-radius: 1rem; font-weight: 600;">{prob_val:.2%}</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.progress(prob_val)
         
-        st.markdown("---")
-        st.subheader("🧠 Grad-CAM")
-        st.markdown("*Red/yellow areas show where the model focused for classification*")
+        # Grad-CAM
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="gradcam-section">
+            <h3 style='color: #673ab7; margin-top: 0;'>👁️ Grad-CAM Visualization</h3>
+            <p style='color: #666; font-style: italic; font-size: 0.9rem;'>🔥 Heatmap highlights critical regions the AI model analyzed for diagnosis</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         heatmap, _ = generate_gradcam(clf_model, img_tensor)
         
@@ -275,45 +623,101 @@ if uploaded_file:
             heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
             original_resized = np.array(image.resize((512, 512)))
             overlay = cv2.addWeighted(original_resized, 0.6, heatmap_colored, 0.4, 0)
-            st.image(overlay, caption="Grad-CAM: Model Focus Areas", use_column_width=True)
+            st.image(overlay, caption="Grad-CAM: Model Focus Areas", use_container_width=True)
         else:
             st.warning("Could not generate Grad-CAM")
     
+    # === DETECTION ===
     with col2:
-        st.subheader("📦 Detection: 14 Abnormalities")
+        st.markdown("""
+        <div class="result-card detection">
+            <h2>🎯 Object Detection</h2>
+        </div>
+        """, unsafe_allow_html=True)
         
-        with st.spinner("Detecting abnormalities..."):
+        with st.spinner("🔍 Detecting abnormalities..."):
             results = det_model.predict(np.array(image), conf=0.25, verbose=False)
         
         res_img = results[0].plot()
-        st.image(res_img, caption="Detected Abnormalities with Bounding Boxes", use_column_width=True)
+        st.image(res_img, caption="Detected Abnormalities with Bounding Boxes", use_container_width=True)
+        
+        st.markdown("<p style='text-align: center; color: #666; font-size: 0.85rem; margin: 1rem 0;'>📦 YOLOv8-M Detection Model (mAP: 0.4305)</p>", unsafe_allow_html=True)
         
         if results[0].boxes is not None and len(results[0].boxes) > 0:
             boxes = results[0].boxes
-            st.markdown("#### 🎯 Detected Abnormalities:")
+            
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); padding: 1rem; border-radius: 0.75rem; border-left: 5px solid #f57c00; margin: 1.5rem 0;">
+                <h3 style="color: #e65100; margin: 0;">🎯 Detected Abnormalities</h3>
+            </div>
+            """, unsafe_allow_html=True)
             
             for i in range(min(5, len(boxes))):
                 cls_id = int(boxes.cls[i])
                 conf = float(boxes.conf[i])
-                st.write(f"**{i+1}. {det_model.names[cls_id]}**")
+                
+                st.markdown(f"""
+                <div class="detection-item">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <div class="detection-number">{i+1}</div>
+                        <strong>{det_model.names[cls_id]}</strong>
+                    </div>
+                    <div style="background: white; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; border: 1px solid #00bcd4;">
+                        {conf:.2%}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
                 st.progress(conf)
-                st.write(f"Confidence: {conf:.2%}\n")
             
-            st.markdown(f"**Total Detections**: {len(boxes)}")
-            st.markdown(f"**Average Confidence**: {float(boxes.conf.mean()):.2%}")
+            # Summary metrics
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #ede7f6 0%, #d1c4e9 100%); padding: 1.5rem; border-radius: 1rem; text-align: center; border: 2px solid #673ab7;">
+                    <p style="margin: 0; color: #4a148c; font-size: 0.85rem;">Total Detections</p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 2rem; font-weight: 700; color: #673ab7;">{len(boxes)}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col_b:
+                avg_conf = float(boxes.conf.mean())
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%); padding: 1.5rem; border-radius: 1rem; text-align: center; border: 2px solid #00bcd4;">
+                    <p style="margin: 0; color: #006064; font-size: 0.85rem;">Avg Confidence</p>
+                    <p style="margin: 0.5rem 0 0 0; font-size: 2rem; font-weight: 700; color: #00acc1;">{avg_conf:.2%}</p>
+                </div>
+                """, unsafe_allow_html=True)
         else:
-            st.success("✅ No abnormalities detected")
-            st.info("This X-ray appears normal based on the detection model.")
+            st.markdown("""
+            <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 2rem; border-radius: 1rem; text-align: center; border: 2px solid #66bb6a; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                <h3 style="color: #2e7d32; margin: 0.5rem 0;">No abnormalities detected</h3>
+                <p style="color: #388e3c; margin: 0;">This X-ray appears normal based on the detection model. All systems clear!</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-st.markdown("---")
+Disclaimer
+st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("""
-<div style='text-align: center; color: gray;'>
-<p><strong>⚠️ DISCLAIMER</strong></p>
-<p>This system is for <strong>educational and research purposes only</strong>.</p>
-<p>It should NOT be used for clinical diagnosis or medical decision-making.</p>
-<p>Always consult a qualified radiologist for medical interpretation of chest X-rays.</p>
-<hr>
-<p><strong>Vasu Chakravarthi</strong></p>
-<p><a href='https://github.com/vasuchakravarthi/cliniscan-lung-detection'>GitHub Repository</a></p>
+<div class="disclaimer">
+    <div class="icon">⚠️</div>
+    <h2 style="color: #c62828; margin: 1rem 0;">MEDICAL DISCLAIMER</h2>
+    <p style="color: #d32f2f; font-size: 1.1rem; margin: 1rem 0;">
+        This system is for <strong>educational and research purposes only</strong>.
+    </p>
+    <p style="color: #e53935; margin: 1rem 0;">
+        It should NOT be used for clinical diagnosis or medical decision-making.<br>
+        Always consult a qualified radiologist for medical interpretation of chest X-rays.
+    </p>
+    <hr style="border-color: #ef9a9a; margin: 2rem 0;">
+    <p style="color: #424242; margin: 0.5rem 0;"><strong>Vasu Chakravarthi</strong> | SRKR Engineering College | BTech AIML 2025</p>
+    <p style="margin: 0.5rem 0;">
+        <a href="https://github.com/vasuchakravarthi/cliniscan-lung-detection" 
+           style="color: #1976d2; text-decoration: none; font-weight: 600;"
+           target="_blank">
+            🔗 GitHub Repository →
+        </a>
+    </p>
 </div>
 """, unsafe_allow_html=True)
+```
