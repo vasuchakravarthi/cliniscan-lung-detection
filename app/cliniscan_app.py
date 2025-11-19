@@ -12,9 +12,9 @@ from torchvision.models.feature_extraction import create_feature_extractor
 import os
 import gdown
 
------------------------------------------------------------------------------
-🎨 CUSTOM STYLING
------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 🎨 CUSTOM STYLING
+# -----------------------------------------------------------------------------
 
 st.set_page_config(
     page_title="🩻 CliniScan - AI Lung Detection",
@@ -22,7 +22,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-Custom CSS for vibrant, modern medical UI
+# Custom CSS for vibrant, modern medical UI
 st.markdown("""
 <style>
     /* Main background gradient */
@@ -290,11 +290,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
------------------------------------------------------------------------------
-🔽 GOOGLE DRIVE MODEL DOWNLOAD
------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 🔽 GOOGLE DRIVE MODEL DOWNLOAD
+# -----------------------------------------------------------------------------
 
-Replace these with your actual Google Drive file IDs
+# Replace these with your actual Google Drive file IDs
 DETECTION_MODEL_ID = "1RN903UCBYkkY9JftW9NauOZbCdFTLc1a"
 CLASSIFICATION_MODEL_ID = "1e2xHBMKshkPcaUDJSLLF-dJe2ohQIhk_"
 
@@ -331,13 +331,13 @@ def download_models():
 
 det_ready, clf_ready = download_models()
 
------------------------------------------------------------------------------
-🤖 MODEL DEFINITIONS
------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 🤖 MODEL DEFINITIONS
+# -----------------------------------------------------------------------------
 
 class EfficientNetClassifier(nn.Module):
-    def init(self, num_classes=2, dropout=0.3):
-        super().init()
+    def __init__(self, num_classes=2, dropout=0.3):
+        super().__init__()
         self.model = timm.create_model('efficientnet_b3', pretrained=False, num_classes=num_classes, drop_rate=dropout)
     
     def forward(self, x):
@@ -391,9 +391,9 @@ def load_detection_model():
 clf_model = load_classification_model()
 det_model = load_detection_model()
 
------------------------------------------------------------------------------
-🔥 GRAD-CAM
------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 🔥 GRAD-CAM
+# -----------------------------------------------------------------------------
 
 def generate_gradcam(model, img_tensor):
     if model is None:
@@ -425,11 +425,11 @@ def generate_gradcam(model, img_tensor):
         st.error(f"Grad-CAM error: {e}")
         return None, None
 
------------------------------------------------------------------------------
-🎨 UI COMPONENTS
------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 🎨 UI COMPONENTS
+# -----------------------------------------------------------------------------
 
-Header
+# Header
 st.markdown("""
 <div class="main-header">
     <h1>🩻 CliniScan: AI-Powered Lung Abnormality Detection</h1>
@@ -437,7 +437,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-Stats Cards
+# Stats Cards
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -467,14 +467,14 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 
-Info Alert
+# Info Alert
 st.markdown("""
 <div class="info-alert">
     <strong>ℹ️ Note:</strong> Classification trained on 512×512 images, optimized for chest X-ray analysis.
 </div>
 """, unsafe_allow_html=True)
 
-Sidebar
+# Sidebar
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-header">
@@ -530,9 +530,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("Developer: Vasu Chakravarthi")
     st.markdown("Institution: SRKR Engineering College")
-    st.markdown("🔗 GitHub Repository")
+    st.markdown("[🔗 GitHub Repository](https://github.com/vasuchakravarthi/cliniscan-lung-detection)")
 
-File Upload
+# File Upload
 st.markdown("<br>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("📤 Upload Chest X-ray (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
@@ -696,7 +696,7 @@ if uploaded_file:
             </div>
             """, unsafe_allow_html=True)
 
-Disclaimer
+# Disclaimer
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("""
 <div class="disclaimer">
@@ -720,4 +720,3 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
-```
