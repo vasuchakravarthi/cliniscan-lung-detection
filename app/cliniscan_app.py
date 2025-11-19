@@ -25,93 +25,71 @@ st.set_page_config(
 # Custom CSS for vibrant, modern medical UI
 st.markdown("""
 <style>
-    /* Main background gradient */
+    /* Main background gradient - Soft Clinical White with hint of blue */
     .stApp {
-        background: linear-gradient(135deg, #e0f7fa 0%, #e3f2fd 50%, #e8eaf6 100%);
+        background: linear-gradient(135deg, #f8fbff 0%, #e8f4f8 50%, #f0f7ff 100%);
     }
     
-    /* Header styling */
+    /* Header styling - Medical Blue gradient */
     .main-header {
-        background: linear-gradient(135deg, #00acc1 0%, #1976d2 50%, #3949ab 100%);
+        background: linear-gradient(135deg, #0077be 0%, #005a8d 50%, #003d5c 100%);
         padding: 2rem;
         border-radius: 1rem;
         color: white;
         text-align: center;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 30px rgba(0,119,190,0.3);
         margin-bottom: 2rem;
     }
     
-    .main-header h1 {
-        font-size: 2.5rem;
-        margin: 0;
-        font-weight: 700;
-    }
-    
-    .main-header p {
-        font-size: 1.1rem;
-        margin-top: 0.5rem;
-        opacity: 0.95;
-    }
-    
-    /* Stats cards */
+    /* Stats cards - Distinct professional colors */
     .stat-card {
-        background: linear-gradient(135deg, #00acc1 0%, #1976d2 100%);
+        background: linear-gradient(135deg, #0077be 0%, #005a8d 100%);
         padding: 1.5rem;
         border-radius: 1rem;
         color: white;
         text-align: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 20px rgba(0,119,190,0.25);
         transition: transform 0.3s ease;
         margin: 0.5rem 0;
     }
     
     .stat-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        box-shadow: 0 12px 30px rgba(0,119,190,0.35);
     }
     
     .stat-card.purple {
-        background: linear-gradient(135deg, #3949ab 0%, #5e35b1 100%);
+        background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%);
+        box-shadow: 0 8px 20px rgba(108,99,255,0.25);
     }
     
     .stat-card.cyan {
-        background: linear-gradient(135deg, #00acc1 0%, #00bcd4 100%);
+        background: linear-gradient(135deg, #00b4d8 0%, #0096c7 100%);
+        box-shadow: 0 8px 20px rgba(0,180,216,0.25);
     }
     
-    .stat-card .emoji {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .stat-card h3 {
-        font-size: 1.3rem;
-        margin: 0.5rem 0;
-        font-weight: 600;
-    }
-    
-    .stat-card p {
-        font-size: 0.9rem;
-        opacity: 0.9;
-        margin: 0;
+    .stat-card.green {
+        background: linear-gradient(135deg, #06d6a0 0%, #04b589 100%);
+        box-shadow: 0 8px 20px rgba(6,214,160,0.25);
     }
     
     /* Alert boxes */
     .info-alert {
-        background: linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%);
-        border-left: 5px solid #1976d2;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border-left: 5px solid #0077be;
         padding: 1.5rem;
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
         margin: 1rem 0;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0,119,190,0.15);
     }
     
     .warning-alert {
         background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-        border-left: 5px solid #f57c00;
+        border-left: 5px solid #ff9800;
         padding: 1.5rem;
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
         margin: 1rem 0;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(255,152,0,0.15);
     }
     
     /* Result cards */
@@ -119,30 +97,30 @@ st.markdown("""
         background: white;
         padding: 2rem;
         border-radius: 1rem;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.08);
         margin: 1rem 0;
-        border: 2px solid #e0e0e0;
+        border: 2px solid #e0e7ff;
     }
     
     .result-card.classification {
-        border-color: #9c27b0;
-        background: linear-gradient(135deg, #ffffff 0%, #f3e5f5 100%);
+        border-color: #6c63ff;
+        background: linear-gradient(135deg, #ffffff 0%, #f3f2ff 100%);
     }
     
     .result-card.detection {
-        border-color: #00bcd4;
-        background: linear-gradient(135deg, #ffffff 0%, #e0f7fa 100%);
+        border-color: #00b4d8;
+        background: linear-gradient(135deg, #ffffff 0%, #e8f8fb 100%);
     }
     
     .result-card h2 {
-        color: #1976d2;
+        color: #0077be;
         margin-top: 0;
         display: flex;
         align-items: center;
         gap: 0.5rem;
     }
     
-    /* Badges */
+    /* Badges - Modern medical status colors */
     .badge {
         display: inline-block;
         padding: 0.5rem 1.5rem;
@@ -153,31 +131,31 @@ st.markdown("""
     }
     
     .badge.normal {
-        background: linear-gradient(135deg, #66bb6a 0%, #43a047 100%);
+        background: linear-gradient(135deg, #06d6a0 0%, #04b589 100%);
         color: white;
-        box-shadow: 0 4px 15px rgba(76,175,80,0.4);
+        box-shadow: 0 4px 15px rgba(6,214,160,0.3);
     }
     
     .badge.abnormal {
-        background: linear-gradient(135deg, #ef5350 0%, #e53935 100%);
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
         color: white;
-        box-shadow: 0 4px 15px rgba(244,67,54,0.4);
+        box-shadow: 0 4px 15px rgba(255,107,107,0.3);
     }
     
     /* Confidence display */
     .confidence-box {
-        background: linear-gradient(135deg, #e3f2fd 0%, #c5cae9 100%);
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         padding: 1.5rem;
         border-radius: 1rem;
         text-align: center;
         margin: 1rem 0;
-        border: 2px solid #1976d2;
+        border: 2px solid #0077be;
     }
     
     .confidence-box .value {
         font-size: 3rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #1976d2 0%, #3949ab 100%);
+        background: linear-gradient(135deg, #0077be 0%, #005a8d 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -185,24 +163,26 @@ st.markdown("""
     
     /* Detection list */
     .detection-item {
-        background: linear-gradient(135deg, #f5f5f5 0%, #e3f2fd 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
         padding: 1rem;
         border-radius: 0.75rem;
         margin: 0.75rem 0;
-        border: 2px solid #00bcd4;
+        border: 2px solid #00b4d8;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 12px rgba(0,180,216,0.12);
     }
     
     .detection-item:hover {
-        border-color: #0097a7;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        border-color: #0096c7;
+        box-shadow: 0 6px 18px rgba(0,180,216,0.2);
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
     }
     
     .detection-number {
-        background: linear-gradient(135deg, #00acc1 0%, #1976d2 100%);
+        background: linear-gradient(135deg, #00b4d8 0%, #0096c7 100%);
         color: white;
         width: 2.5rem;
         height: 2.5rem;
@@ -214,15 +194,15 @@ st.markdown("""
         margin-right: 1rem;
     }
     
-    /* Disclaimer */
+    /* Disclaimer - Medical Warning Red */
     .disclaimer {
-        background: linear-gradient(135deg, #ffebee 0%, #fbe9e7 100%);
-        border-left: 8px solid #d32f2f;
+        background: linear-gradient(135deg, #ffebee 0%, #ffe5e5 100%);
+        border-left: 8px solid #ff6b6b;
         padding: 2rem;
         border-radius: 1rem;
         text-align: center;
         margin: 2rem 0;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 6px 24px rgba(255,107,107,0.15);
     }
     
     .disclaimer .icon {
@@ -232,16 +212,17 @@ st.markdown("""
     
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ffffff 0%, #e3f2fd 100%);
+        background: linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%);
     }
     
     .sidebar-header {
-        background: linear-gradient(135deg, #1976d2 0%, #3949ab 100%);
+        background: linear-gradient(135deg, #0077be 0%, #005a8d 100%);
         padding: 1.5rem;
         border-radius: 1rem;
         color: white;
         margin-bottom: 1.5rem;
         text-align: center;
+        box-shadow: 0 4px 12px rgba(0,119,190,0.2);
     }
     
     .sidebar-card {
@@ -249,33 +230,23 @@ st.markdown("""
         padding: 1.5rem;
         border-radius: 1rem;
         margin: 1rem 0;
-        border: 2px solid #00bcd4;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        border: 2px solid #00b4d8;
+        box-shadow: 0 4px 12px rgba(0,180,216,0.1);
     }
     
     .sidebar-card h3 {
-        color: #00acc1;
+        color: #0077be;
         margin-top: 0;
-    }
-    
-    /* Upload section */
-    .upload-section {
-        background: white;
-        padding: 3rem;
-        border-radius: 1rem;
-        border: 3px dashed #00bcd4;
-        text-align: center;
-        margin: 2rem 0;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
     }
     
     /* Gradcam section */
     .gradcam-section {
-        background: linear-gradient(135deg, #ffffff 0%, #ede7f6 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #f3f2ff 100%);
         padding: 1.5rem;
         border-radius: 1rem;
-        border: 2px solid #673ab7;
+        border: 2px solid #6c63ff;
         margin-top: 1.5rem;
+        box-shadow: 0 4px 12px rgba(108,99,255,0.1);
     }
     
     /* Hide Streamlit branding */
@@ -286,9 +257,11 @@ st.markdown("""
     [data-testid="stMetricValue"] {
         font-size: 2rem;
         font-weight: 700;
+        color: #0077be;
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 # -----------------------------------------------------------------------------
 # 🔽 GOOGLE DRIVE MODEL DOWNLOAD
