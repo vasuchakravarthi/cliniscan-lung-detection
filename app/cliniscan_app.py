@@ -1,13 +1,13 @@
 import streamlit as st
 import torch
+import torch.nn as nn
 from PIL import Image
 import numpy as np
 import cv2
 from torchvision import transforms
-from torchvision.models import resnet50
 import matplotlib.pyplot as plt
 from ultralytics import YOLO
-import torchvision
+import timm
 from torchvision.models.feature_extraction import create_feature_extractor
 import os
 import gdown
@@ -38,7 +38,7 @@ def download_models():
     
     # Download detection model
     if not os.path.exists(det_path):
-        with st.spinner("⏳ Downloading detection model (148 MB)... First run only."):
+        with st.spinner("⏳ Downloading detection model (52 MB)... First run only."):
             try:
                 url = f"https://drive.google.com/uc?id={DETECTION_MODEL_ID}"
                 gdown.download(url, det_path, quiet=False)
@@ -49,7 +49,7 @@ def download_models():
     
     # Download classification model
     if not os.path.exists(clf_path):
-        with st.spinner("⏳ Downloading classification model (123 MB)..."):
+        with st.spinner("⏳ Downloading classification model (129 MB)..."):
             try:
                 url = f"https://drive.google.com/uc?id={CLASSIFICATION_MODEL_ID}"
                 gdown.download(url, clf_path, quiet=False)
@@ -66,21 +66,27 @@ det_ready, clf_ready = download_models()
 # -----------------------------------------------------------------------------
 # 1️⃣ Load Models
 # -----------------------------------------------------------------------------
+
+# Define EfficientNet-B3 Classifier (EXACTLY as in your training)
+class EfficientNetClassifier(nn.Module):
+    def __init__(self, num_classes=2, dropout=0.3):
+        super().__init__()
+        self.model = timm.create_model('efficientnet_b3', pretrained=False, num_classes=num_classes, drop_rate=dropout)
+    
+    def forward(self, x):
+        return self.model(x)
+
 @st.cache_resource
 def load_classification_model():
-    """Load EfficientNet-B0 classification model"""
+    """Load EfficientNet-B3 classification model"""
     if not clf_ready:
         return None
     
     try:
-        from torchvision.models import efficientnet_b0
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # Create EfficientNet-B0 model (NOT ResNet50!)
-        model = efficientnet_b0(weights=None)
-        
-        # Modify classifier head for 3 classes
-        num_features = model.classifier[1].in_features
-        model.classifier[1] = torch.nn.Linear(num_features, 3)
+        # Create model (EXACTLY as in training)
+        model = EfficientNetClassifier(num_classes=2, dropout=0.3).to(device)
         
         model_path = "models/classification/best_clf_model.pth"
         
@@ -88,15 +94,14 @@ def load_classification_model():
             st.error("⚠️ Model file not found")
             return None
         
-        # Load checkpoint
-        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+        # Load checkpoint (weights_only=False as in your code)
+        checkpoint = torch.load(model_path, map_location=device, weights_only=False)
         
-        # Extract model state dict from checkpoint
+        # Extract model state dict from 'model' key (as in your training)
         if isinstance(checkpoint, dict) and 'model' in checkpoint:
-            # The checkpoint contains 'model' key with the state dict
             model.load_state_dict(checkpoint['model'])
+            st.success(f"✅ Model loaded! Accuracy: {checkpoint['acc']:.2f}%")
         else:
-            # Fallback: checkpoint is already a state dict
             model.load_state_dict(checkpoint)
         
         model.eval()
@@ -107,39 +112,6 @@ def load_classification_model():
         import traceback
         st.error(traceback.format_exc())
         return None
-
-@st.cache_resource
-def load_classification_model():
-    """Load ResNet50 classification model"""
-    if not clf_ready:
-        return None
-    
-    try:
-        model = resnet50(weights=None)
-        model.fc = torch.nn.Linear(model.fc.in_features, 3)
-        model_path = "models/classification/best_clf_model.pth"
-        
-        if not os.path.exists(model_path):
-            st.error("⚠️ Model file not found")
-            return None
-        
-        # Load checkpoint (contains 'model', 'optimizer', etc.)
-        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
-        
-        # Extract only the model weights from 'model' key
-        if isinstance(checkpoint, dict) and 'model' in checkpoint:
-            model.load_state_dict(checkpoint['model'])
-        else:
-            # Fallback: if it's already just state_dict
-            model.load_state_dict(checkpoint)
-        
-        model.eval()
-        return model
-    except Exception as e:
-        st.error(f"Error: {e}")
-        return None
-
-
 
 @st.cache_resource
 def load_detection_model():
@@ -164,25 +136,34 @@ clf_model = load_classification_model()
 det_model = load_detection_model()
 
 # -----------------------------------------------------------------------------
-# 2️⃣ Grad-CAM
+# 2️⃣ Grad-CAM for EfficientNet-B3
 # -----------------------------------------------------------------------------
 
 def generate_gradcam(model, img_tensor):
-    """Generate Grad-CAM heatmap"""
+    """Generate Grad-CAM heatmap for EfficientNet-B3"""
     if model is None:
         return None, None
     
     try:
+        device = next(model.parameters()).device
         model.eval()
-        feature_extractor = create_feature_extractor(model, {"features.8": "feat"})
+        
+        # For EfficientNet-B3, use the last conv layer (conv_head)
+        # Access the inner model: model.model (timm model)
+        feature_extractor = create_feature_extractor(
+            model.model, 
+            {"conv_head": "feat"}  # EfficientNet-B3 layer name
+        )
         
         with torch.no_grad():
-            out = feature_extractor(img_tensor.unsqueeze(0))
-            preds = model(img_tensor.unsqueeze(0))
+            img_tensor = img_tensor.unsqueeze(0).to(device)
+            out = feature_extractor(img_tensor)
+            preds = model(img_tensor)
             pred_class = preds.argmax(dim=1).item()
         
-        feat_map = out["feat"].squeeze().detach().mean(dim=0).numpy()
-        heatmap = cv2.resize(feat_map, (224, 224))
+        # Generate heatmap
+        feat_map = out["feat"].squeeze().detach().mean(dim=0).cpu().numpy()
+        heatmap = cv2.resize(feat_map, (512, 512))  # Your training size
         heatmap = np.maximum(heatmap, 0)
         if np.max(heatmap) > 0:
             heatmap /= np.max(heatmap)
@@ -200,11 +181,11 @@ st.title("🩻 CliniScan: AI-Powered Lung Abnormality Detection")
 
 st.markdown("""
 Upload a **Chest X-ray** image to:
-- 🎯 Detect **14 lung abnormalities** with bounding boxes
-- 📊 Get **overall classification** (Normal, Abnormal, Severe)
-- 🧠 View **Grad-CAM heatmap**
+- 🎯 Detect **14 lung abnormalities** with bounding boxes (YOLOv8-M, mAP: 0.4305)
+- 📊 Get **overall classification**: Abnormal vs Normal (EfficientNet-B3, Acc: 95.20%)
+- 🧠 View **Grad-CAM heatmap** showing model focus areas
 
-**Models**: YOLOv8-M (mAP: 0.4305) | ResNet50 (Acc: 95.20%)
+**Note**: Classification trained on 512×512 images, optimized for chest X-ray analysis.
 """)
 
 with st.sidebar:
@@ -225,6 +206,10 @@ with st.sidebar:
     12. Pleural thickening
     13. Pneumothorax
     14. Pulmonary fibrosis
+    
+    **Classification Classes**:
+    - Abnormal (Class 0)
+    - Normal (Class 1)
     
     **⚠️ Disclaimer**: Educational purposes only.
     """)
@@ -252,52 +237,60 @@ if uploaded_file:
     with col1:
         st.subheader("🔍 Classification")
         
+        # Preprocessing (EXACTLY as in your training: 512x512)
         transform = transforms.Compose([
-            transforms.Resize((224, 224)),
+            transforms.Resize((512, 512)),  # Your training size
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         
         img_tensor = transform(image)
+        device = next(clf_model.parameters()).device
+        img_tensor = img_tensor.to(device)
         
         with torch.no_grad():
             preds = clf_model(img_tensor.unsqueeze(0))
             probs = torch.nn.functional.softmax(preds, dim=1)
             pred_class = torch.argmax(probs).item()
         
-        class_names = ["Normal", "Abnormal", "Severe"]
+        # Class names (0: Abnormal, 1: Normal as in your training)
+        class_names = ["Abnormal", "Normal"]
         
         st.markdown(f"### Predicted: **{class_names[pred_class]}**")
         st.markdown(f"### Confidence: **{probs[0][pred_class]:.2%}**")
         
-        st.markdown("#### Top 3:")
-        top3_probs, top3_indices = torch.topk(probs, 3)
-        for i in range(3):
-            st.write(f"{i+1}. {class_names[top3_indices[0][i].item()]}: {top3_probs[0][i].item():.2%}")
+        st.markdown("#### Probabilities:")
+        for i, name in enumerate(class_names):
+            st.write(f"{name}: {probs[0][i].item():.2%}")
+            st.progress(float(probs[0][i].item()))
         
         st.markdown("---")
         st.subheader("🧠 Grad-CAM")
+        st.markdown("*Red/yellow areas show where the model focused for classification*")
+        
         heatmap, _ = generate_gradcam(clf_model, img_tensor)
         
         if heatmap is not None:
             heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
             heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
-            original_resized = np.array(image.resize((224, 224)))
+            original_resized = np.array(image.resize((512, 512)))
             overlay = cv2.addWeighted(original_resized, 0.6, heatmap_colored, 0.4, 0)
-            st.image(overlay, caption="Model Focus Areas", use_column_width=True)
+            st.image(overlay, caption="Grad-CAM: Model Focus Areas", use_column_width=True)
+        else:
+            st.warning("Could not generate Grad-CAM")
     
     with col2:
-        st.subheader("📦 Detection")
+        st.subheader("📦 Detection: 14 Abnormalities")
         
-        with st.spinner("Detecting..."):
+        with st.spinner("Detecting abnormalities..."):
             results = det_model.predict(np.array(image), conf=0.25, verbose=False)
         
         res_img = results[0].plot()
-        st.image(res_img, caption="Detected Abnormalities", use_column_width=True)
+        st.image(res_img, caption="Detected Abnormalities with Bounding Boxes", use_column_width=True)
         
         if results[0].boxes is not None and len(results[0].boxes) > 0:
             boxes = results[0].boxes
-            st.markdown("#### 🎯 Detected:")
+            st.markdown("#### 🎯 Detected Abnormalities:")
             
             for i in range(min(5, len(boxes))):
                 cls_id = int(boxes.cls[i])
@@ -306,15 +299,19 @@ if uploaded_file:
                 st.progress(conf)
                 st.write(f"Confidence: {conf:.2%}\n")
             
-            st.markdown(f"**Total**: {len(boxes)}")
+            st.markdown(f"**Total Detections**: {len(boxes)}")
+            st.markdown(f"**Average Confidence**: {float(boxes.conf.mean()):.2%}")
         else:
             st.success("✅ No abnormalities detected")
+            st.info("This X-ray appears normal based on the detection model.")
 
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
 <p><strong>⚠️ DISCLAIMER</strong></p>
-<p>Educational purposes only. Not for clinical diagnosis.</p>
+<p>This system is for <strong>educational and research purposes only</strong>.</p>
+<p>It should NOT be used for clinical diagnosis or medical decision-making.</p>
+<p>Always consult a qualified radiologist for medical interpretation of chest X-rays.</p>
 <hr>
 <p><strong>Vasu Chakravarthi</strong> | SRKR Engineering College | BTech AIML 2025</p>
 <p><a href='https://github.com/vasuchakravarthi/cliniscan-lung-detection'>GitHub Repository</a></p>
