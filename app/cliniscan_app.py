@@ -41,6 +41,18 @@ st.markdown("""
         margin-bottom: 2rem;
     }
     
+    .main-header h1 {
+        font-size: 2.5rem;
+        margin: 0;
+        font-weight: 700;
+    }
+    
+    .main-header p {
+        font-size: 1.1rem;
+        margin-top: 0.5rem;
+        opacity: 0.95;
+    }
+    
     /* Stats cards - Distinct professional colors */
     .stat-card {
         background: linear-gradient(135deg, #0077be 0%, #005a8d 100%);
@@ -59,8 +71,12 @@ st.markdown("""
     }
     
     .stat-card.purple {
-        background: linear-gradient(135deg, #6c63ff 0%, #5a52d5 100%);
-        box-shadow: 0 8px 20px rgba(108,99,255,0.25);
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        box-shadow: 0 8px 20px rgba(124,58,237,0.25);
+    }
+    
+    .stat-card.purple:hover {
+        box-shadow: 0 12px 30px rgba(124,58,237,0.35);
     }
     
     .stat-card.cyan {
@@ -68,28 +84,54 @@ st.markdown("""
         box-shadow: 0 8px 20px rgba(0,180,216,0.25);
     }
     
-    .stat-card.green {
-        background: linear-gradient(135deg, #06d6a0 0%, #04b589 100%);
-        box-shadow: 0 8px 20px rgba(6,214,160,0.25);
+    .stat-card.cyan:hover {
+        box-shadow: 0 12px 30px rgba(0,180,216,0.35);
+    }
+    
+    .stat-card .emoji {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card h3 {
+        font-size: 1.3rem;
+        margin: 0.5rem 0;
+        font-weight: 600;
+    }
+    
+    .stat-card p {
+        font-size: 0.9rem;
+        opacity: 0.9;
+        margin: 0;
     }
     
     /* Alert boxes */
     .info-alert {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
         border-left: 5px solid #0077be;
         padding: 1.5rem;
         border-radius: 0.75rem;
         margin: 1rem 0;
         box-shadow: 0 4px 12px rgba(0,119,190,0.15);
+        color: #1e3a8a;
+    }
+    
+    .info-alert strong {
+        color: #1e40af;
     }
     
     .warning-alert {
-        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
-        border-left: 5px solid #ff9800;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-left: 5px solid #f59e0b;
         padding: 1.5rem;
         border-radius: 0.75rem;
         margin: 1rem 0;
-        box-shadow: 0 4px 12px rgba(255,152,0,0.15);
+        box-shadow: 0 4px 12px rgba(245,158,11,0.15);
+        color: #78350f;
+    }
+    
+    .warning-alert strong {
+        color: #92400e;
     }
     
     /* Result cards */
@@ -103,13 +145,13 @@ st.markdown("""
     }
     
     .result-card.classification {
-        border-color: #6c63ff;
-        background: linear-gradient(135deg, #ffffff 0%, #f3f2ff 100%);
+        border-color: #7c3aed;
+        background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
     }
     
     .result-card.detection {
         border-color: #00b4d8;
-        background: linear-gradient(135deg, #ffffff 0%, #e8f8fb 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #ecfeff 100%);
     }
     
     .result-card h2 {
@@ -131,20 +173,20 @@ st.markdown("""
     }
     
     .badge.normal {
-        background: linear-gradient(135deg, #06d6a0 0%, #04b589 100%);
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
         color: white;
-        box-shadow: 0 4px 15px rgba(6,214,160,0.3);
+        box-shadow: 0 4px 15px rgba(16,185,129,0.3);
     }
     
     .badge.abnormal {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         color: white;
-        box-shadow: 0 4px 15px rgba(255,107,107,0.3);
+        box-shadow: 0 4px 15px rgba(239,68,68,0.3);
     }
     
     /* Confidence display */
     .confidence-box {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
         padding: 1.5rem;
         border-radius: 1rem;
         text-align: center;
@@ -196,13 +238,13 @@ st.markdown("""
     
     /* Disclaimer - Medical Warning Red */
     .disclaimer {
-        background: linear-gradient(135deg, #ffebee 0%, #ffe5e5 100%);
-        border-left: 8px solid #ff6b6b;
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border-left: 8px solid #ef4444;
         padding: 2rem;
         border-radius: 1rem;
         text-align: center;
         margin: 2rem 0;
-        box-shadow: 0 6px 24px rgba(255,107,107,0.15);
+        box-shadow: 0 6px 24px rgba(239,68,68,0.15);
     }
     
     .disclaimer .icon {
@@ -212,7 +254,7 @@ st.markdown("""
     
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ffffff 0%, #f0f7ff 100%);
+        background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
     }
     
     .sidebar-header {
@@ -223,6 +265,17 @@ st.markdown("""
         margin-bottom: 1.5rem;
         text-align: center;
         box-shadow: 0 4px 12px rgba(0,119,190,0.2);
+    }
+    
+    .sidebar-header h2 {
+        margin: 0;
+        font-size: 1.3rem;
+    }
+    
+    .sidebar-header p {
+        margin: 0.5rem 0 0 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
     }
     
     .sidebar-card {
@@ -237,16 +290,69 @@ st.markdown("""
     .sidebar-card h3 {
         color: #0077be;
         margin-top: 0;
+        font-weight: 600;
+    }
+    
+    .sidebar-card ol {
+        color: #1e293b;
+        font-size: 0.9rem;
+        line-height: 1.8;
+    }
+    
+    /* Classification Classes - FIXED VISIBILITY */
+    .sidebar-card .class-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+    }
+    
+    .sidebar-card .class-item.abnormal {
+        background: #fee2e2;
+        border: 1px solid #ef4444;
+    }
+    
+    .sidebar-card .class-item.abnormal strong {
+        color: #991b1b !important;
+        font-weight: 700;
+    }
+    
+    .sidebar-card .class-item.normal {
+        background: #d1fae5;
+        border: 1px solid #10b981;
+    }
+    
+    .sidebar-card .class-item.normal strong {
+        color: #065f46 !important;
+        font-weight: 700;
+    }
+    
+    .sidebar-card .class-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
     }
     
     /* Gradcam section */
     .gradcam-section {
-        background: linear-gradient(135deg, #ffffff 0%, #f3f2ff 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
         padding: 1.5rem;
         border-radius: 1rem;
-        border: 2px solid #6c63ff;
+        border: 2px solid #7c3aed;
         margin-top: 1.5rem;
-        box-shadow: 0 4px 12px rgba(108,99,255,0.1);
+        box-shadow: 0 4px 12px rgba(124,58,237,0.1);
+    }
+    
+    .gradcam-section h3 {
+        color: #6d28d9;
+        margin-top: 0;
+    }
+    
+    .gradcam-section p {
+        color: #4c1d95;
     }
     
     /* Hide Streamlit branding */
@@ -261,6 +367,7 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # -----------------------------------------------------------------------------
