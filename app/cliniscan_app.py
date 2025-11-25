@@ -1,4 +1,3 @@
-# app/cliniscan_app.py
 import streamlit as st
 import torch
 import torch.nn as nn
@@ -6,218 +5,315 @@ from PIL import Image
 import numpy as np
 import cv2
 from torchvision import transforms
+import matplotlib.pyplot as plt
 from ultralytics import YOLO
 import timm
 from torchvision.models.feature_extraction import create_feature_extractor
 import os
 import gdown
 
-# ====================== PAGE CONFIG ======================
+# Page configuration
 st.set_page_config(
-    page_title="CliniScan Pro • AI Chest X-ray Analysis",
-    page_icon="Lungs",
+    page_title="🩻 CliniScan - Lung Abnormality Detection",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# ====================== CUSTOM CSS ======================
-st.markdown("""
-<style>
-    .big-title {font-size: 4rem !important; font-weight: 800; text-align: center;
-                background: linear-gradient(90deg, #1e88e5, #42a5f5);
-                -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;}
-    .subtitle {text-align: center; font-size: 1.4rem; color: #555; margin-bottom: 2rem;}
-    .card {background: white; padding: 1.5rem; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 1rem 0;}
-    .metric-card {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  padding: 1.5rem; border-radius: 15px; color: white; text-align: center;}
-    .detection-box {background: #e3f2fd; padding: 1rem; border-radius: 12px;
-                    border-left: 6px solid #1e88e5; margin: 0.8rem 0;}
-    .stButton>button {background: #1e88e5; color: white; border-radius: 12px; padding: 0.6rem 2rem;}
-</style>
-""", unsafe_allow_html=True)
+# -----------------------------------------------------------------------------
+# 🔽 GOOGLE DRIVE MODEL DOWNLOAD
+# -----------------------------------------------------------------------------
 
-# ====================== MODEL DOWNLOAD ======================
+# Replace these with your actual Google Drive file IDs
 DETECTION_MODEL_ID = "1RN903UCBYkkY9JftW9NauOZbCdFTLc1a"
 CLASSIFICATION_MODEL_ID = "1e2xHBMKshkPcaUDJSLLF-dJe2ohQIhk_"
 
 @st.cache_resource
 def download_models():
+    """Download models from Google Drive if not present"""
     os.makedirs("models/detection", exist_ok=True)
     os.makedirs("models/classification", exist_ok=True)
     
     det_path = "models/detection/best.pt"
     clf_path = "models/classification/best_clf_model.pth"
     
+    # Download detection model
     if not os.path.exists(det_path):
-        with st.spinner("Downloading YOLOv8 detection model (52MB)..."):
-            gdown.download(f"https://drive.google.com/uc?id={DETECTION_MODEL_ID}", det_path, quiet=False)
+        with st.spinner("⏳ Downloading detection model (52 MB)... First run only."):
+            try:
+                url = f"https://drive.google.com/uc?id={DETECTION_MODEL_ID}"
+                gdown.download(url, det_path, quiet=False)
+                st.success("✅ Detection model downloaded!")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+                return False, False
     
+    # Download classification model
     if not os.path.exists(clf_path):
-        with st.spinner("Downloading classification model (129MB)..."):
-            gdown.download(f"https://drive.google.com/uc?id={CLASSIFICATION_MODEL_ID}", clf_path, quiet=False)
+        with st.spinner("⏳ Downloading classification model (129 MB)..."):
+            try:
+                url = f"https://drive.google.com/uc?id={CLASSIFICATION_MODEL_ID}"
+                gdown.download(url, clf_path, quiet=False)
+                st.success("✅ Classification model downloaded!")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+                return True, False
     
     return True, True
 
+# Download models
 det_ready, clf_ready = download_models()
 
-# ====================== MODEL CLASSES ======================
+# -----------------------------------------------------------------------------
+# 1️⃣ Load Models
+# -----------------------------------------------------------------------------
+
+# Define EfficientNet-B3 Classifier (EXACTLY as in your training)
 class EfficientNetClassifier(nn.Module):
     def __init__(self, num_classes=2, dropout=0.3):
         super().__init__()
         self.model = timm.create_model('efficientnet_b3', pretrained=False, num_classes=num_classes, drop_rate=dropout)
+    
     def forward(self, x):
         return self.model(x)
 
 @st.cache_resource
 def load_classification_model():
-    path = "models/classification/best_clf_model.pth"
-    if not os.path.exists(path):
+    """Load EfficientNet-B3 classification model"""
+    if not clf_ready:
         return None
+    
     try:
-        # FIXED: This works 100% on Streamlit Cloud
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
-        state_dict = checkpoint['model'] if isinstance(checkpoint, dict) and 'model' in checkpoint else checkpoint
-        
-        model = EfficientNetClassifier(num_classes=2, dropout=0.3)
-        model.load_state_dict(state_dict)
-        model.eval()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        return model.to(device)
-    except:
-        st.error("Failed to load classification model (PyTorch version issue)")
+        
+        # Create model (EXACTLY as in training)
+        model = EfficientNetClassifier(num_classes=2, dropout=0.3).to(device)
+        
+        model_path = "models/classification/best_clf_model.pth"
+        
+        if not os.path.exists(model_path):
+            st.error("⚠️ Model file not found")
+            return None
+        
+        # Load checkpoint (weights_only=False as in your code)
+        checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+        
+        # Extract model state dict from 'model' key (as in your training)
+        if isinstance(checkpoint, dict) and 'model' in checkpoint:
+            model.load_state_dict(checkpoint['model'])
+            st.success(f"✅ Model loaded! Accuracy: {checkpoint['acc']:.2f}%")
+        else:
+            model.load_state_dict(checkpoint)
+        
+        model.eval()
+        return model
+        
+    except Exception as e:
+        st.error(f"Error loading classification model: {e}")
+        import traceback
+        st.error(traceback.format_exc())
         return None
 
 @st.cache_resource
 def load_detection_model():
-    path = "models/detection/best.pt"
-    if not os.path.exists(path):
+    """Load YOLOv8 detection model"""
+    if not det_ready:
         return None
-    return YOLO(path)
+    
+    try:
+        model_path = "models/detection/best.pt"
+        if not os.path.exists(model_path):
+            st.error("⚠️ Model file not found")
+            return None
+        
+        model = YOLO(model_path)
+        return model
+    except Exception as e:
+        st.error(f"Error: {e}")
+        return None
 
+# Load models
 clf_model = load_classification_model()
 det_model = load_detection_model()
 
-# ====================== GRAD-CAM ======================
-def get_gradcam_overlay(model, img_tensor, original_img):
-    if model is None: return None
+# -----------------------------------------------------------------------------
+# 2️⃣ Grad-CAM for EfficientNet-B3
+# -----------------------------------------------------------------------------
+
+def generate_gradcam(model, img_tensor):
+    """Generate Grad-CAM heatmap for EfficientNet-B3"""
+    if model is None:
+        return None, None
+    
     try:
         device = next(model.parameters()).device
-        img_tensor = img_tensor.unsqueeze(0).to(device)
-        feats = create_feature_extractor(model.model, {"conv_head": "feat"})(img_tensor)["feat"]
-        pred = model(img_tensor)
-        pred_class = pred.argmax(1).item()
+        model.eval()
         
-        grad = torch.autograd.grad(pred[0, pred_class], feats)[0]
-        weights = grad.mean([2,3], keepdim=True)
-        cam = (feats * weights).sum(1).squeeze().cpu().detach().numpy()
-        cam = np.maximum(cam, 0)
-        cam = cv2.resize(cam, (original_img.width, original_img.height))
-        cam = cam / cam.max()
-        cam = np.uint8(255 * cam)
-        cam = cv2.applyColorMap(cam, cv2.COLORMAP_INFERNO)
-        overlay = cv2.addWeighted(np.array(original_img), 0.65, cv2.cvtColor(cam, cv2.COLOR_BGR2RGB), 0.35, 0)
-        return overlay
-    except:
-        return None
+        # For EfficientNet-B3, use the last conv layer (conv_head)
+        # Access the inner model: model.model (timm model)
+        feature_extractor = create_feature_extractor(
+            model.model, 
+            {"conv_head": "feat"}  # EfficientNet-B3 layer name
+        )
+        
+        with torch.no_grad():
+            img_tensor = img_tensor.unsqueeze(0).to(device)
+            out = feature_extractor(img_tensor)
+            preds = model(img_tensor)
+            pred_class = preds.argmax(dim=1).item()
+        
+        # Generate heatmap
+        feat_map = out["feat"].squeeze().detach().mean(dim=0).cpu().numpy()
+        heatmap = cv2.resize(feat_map, (512, 512))  # Your training size
+        heatmap = np.maximum(heatmap, 0)
+        if np.max(heatmap) > 0:
+            heatmap /= np.max(heatmap)
+        
+        return heatmap, pred_class
+    except Exception as e:
+        st.error(f"Grad-CAM error: {e}")
+        return None, None
 
-# ====================== MAIN UI ======================
-st.markdown("<h1 class='big-title'>CliniScan Pro</h1>", unsafe_allow_html=True)
-st.markdown("<p class='subtitle'>AI-Powered Chest X-ray Analysis • 14 Abnormalities • Real-time Results</p>", unsafe_allow_html=True)
+# -----------------------------------------------------------------------------
+# 3️⃣ UI
+# -----------------------------------------------------------------------------
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown("<div class='metric-card'><h2>14</h2><p>Abnormalities</p></div>", unsafe_allow_html=True)
-with col2:
-    st.markdown("<div class='metric-card'><h2>95.2%</h2><p>Accuracy</p></div>", unsafe_allow_html=True)
-with col3:
-    st.markdown("<div class='metric-card'><h2>Real-time</h2><p>Analysis</p></div>", unsafe_allow_html=True)
-with col4:
-    st.markdown("<div class='metric-card'><h2>Grad-CAM</h2><p>Explainable AI</p></div>", unsafe_allow_html=True)
+st.title("🩻 CliniScan: AI-Powered Lung Abnormality Detection")
+
+st.markdown("""
+Upload a **Chest X-ray** image to:
+- 🎯 Detect **14 lung abnormalities** with bounding boxes (YOLOv8-M, mAP: 0.4305)
+- 📊 Get **overall classification**: Abnormal vs Normal (EfficientNet-B3, Acc: 95.20%)
+- 🧠 View **Grad-CAM heatmap** showing model focus areas
+
+**Note**: Classification trained on 512×512 images, optimized for chest X-ray analysis.
+""")
+
+with st.sidebar:
+    st.header("ℹ️ About CliniScan")
+    st.markdown("""
+    **14 Detectable Abnormalities**:
+    1. Aortic enlargement
+    2. Atelectasis
+    3. Calcification
+    4. Cardiomegaly
+    5. Consolidation
+    6. ILD
+    7. Infiltration
+    8. Lung Opacity
+    9. Nodule/Mass
+    10. Other lesion
+    11. Pleural effusion
+    12. Pleural thickening
+    13. Pneumothorax
+    14. Pulmonary fibrosis
+    
+    **Classification Classes**:
+    - Abnormal (Class 0)
+    - Normal (Class 1)
+    
+    **⚠️ Disclaimer**: Educational purposes only.
+    """)
+    
+    st.markdown("---")
+    st.markdown("**Developer**: Vasu Chakravarthi")
+    st.markdown("**Institution**: SRKR Engineering College")
+    st.markdown("[GitHub Repository](https://github.com/vasuchakravarthi/cliniscan-lung-detection)")
 
 st.markdown("---")
-
-uploaded_file = st.file_uploader("### Upload Chest X-ray (JPG/PNG)", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("📤 Upload Chest X-ray (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
+    st.subheader("📷 Uploaded X-ray")
+    st.image(image, use_column_width=True)
     
-    if not clf_model or not det_model:
-        st.error("Models are still loading... Please wait 30 seconds.")
+    if clf_model is None or det_model is None:
+        st.error("⚠️ Models not loaded. Check Google Drive file IDs.")
         st.stop()
     
-    st.image(image, caption="Uploaded X-ray", use_column_width=True)
+    st.markdown("---")
+    col1, col2 = st.columns(2)
     
-    progress = st.progress(0)
-    status = st.empty()
-    
-    # Classification
-    status.text("Classifying: Normal vs Abnormal...")
-    progress.progress(33)
-    transform = transforms.Compose([
-        transforms.Resize((512, 512)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-    tensor = transform(image).unsqueeze(0).to(next(clf_model.parameters()).device)
-    with torch.no_grad():
-        prob = torch.softmax(clf_model(tensor), 1)[0]
-        pred_label = "Abnormal" if prob[0] > prob[1] else "Normal"
-        confidence = max(prob[0], prob[1]).item()
-    
-    # Detection
-    status.text("Detecting 14 abnormalities...")
-    progress.progress(66)
-    results = det_model.predict(np.array(image), conf=0.25, verbose=False)[0]
-    
-    # Grad-CAM
-    status.text("Generating attention heatmap...")
-    progress.progress(90)
-    heatmap = get_gradcam_overlay(clf_model, transform(image), image)
-    progress.progress(100)
-    status.empty()
-    progress.empty()
-    
-    st.success("Analysis Complete!")
-    
-    tab1, tab2, tab3 = st.tabs(["Classification", "Abnormalities Detected", "AI Focus (Grad-CAM)"])
-    
-    with tab1:
-        st.markdown(f"<h2>Overall Result: <span style='color:{'red' if pred_label=='Abnormal' else 'green'}'>{pred_label}</span></h2>", unsafe_allow_html=True)
-        st.progress(confidence)
-        st.write(f"**Confidence: {confidence:.1%}**")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Normal", f"{prob[1]:.1%}")
-        with col2:
-            st.metric("Abnormal", f"{prob[0]:.1%}")
-    
-    with tab2:
-        annotated = results.plot()
-        st.image(annotated, use_column_width=True)
-        if len(results.boxes) > 0:
-            st.markdown("### Detected Findings:")
-            for box in results.boxes:
-                name = det_model.names[int(box.cls)]
-                conf = box.conf.item()
-                st.markdown(f"<div class='detection-box'><strong>{name}</strong> – {conf:.1%} confidence</div>", unsafe_allow_html=True)
-        else:
-            st.balloons()
-            st.success("No abnormalities detected – Likely Normal!")
-    
-    with tab3:
+    with col1:
+        st.subheader("🔍 Classification")
+        
+        # Preprocessing (EXACTLY as in your training: 512x512)
+        transform = transforms.Compose([
+            transforms.Resize((512, 512)),  # Your training size
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        
+        img_tensor = transform(image)
+        device = next(clf_model.parameters()).device
+        img_tensor = img_tensor.to(device)
+        
+        with torch.no_grad():
+            preds = clf_model(img_tensor.unsqueeze(0))
+            probs = torch.nn.functional.softmax(preds, dim=1)
+            pred_class = torch.argmax(probs).item()
+        
+        # Class names (0: Abnormal, 1: Normal as in your training)
+        class_names = ["Abnormal", "Normal"]
+        
+        st.markdown(f"### Predicted: **{class_names[pred_class]}**")
+        st.markdown(f"### Confidence: **{probs[0][pred_class]:.2%}**")
+        
+        st.markdown("#### Probabilities:")
+        for i, name in enumerate(class_names):
+            st.write(f"{name}: {probs[0][i].item():.2%}")
+            st.progress(float(probs[0][i].item()))
+        
+        st.markdown("---")
+        st.subheader("🧠 Grad-CAM")
+        st.markdown("*Red/yellow areas show where the model focused for classification*")
+        
+        heatmap, _ = generate_gradcam(clf_model, img_tensor)
+        
         if heatmap is not None:
-            st.image(heatmap, caption="Where the AI focused (Red = High Attention)", use_column_width=True)
-            st.info("This heatmap shows which parts of the X-ray influenced the AI's decision.")
+            heatmap_colored = cv2.applyColorMap(np.uint8(255 * heatmap), cv2.COLORMAP_JET)
+            heatmap_colored = cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB)
+            original_resized = np.array(image.resize((512, 512)))
+            overlay = cv2.addWeighted(original_resized, 0.6, heatmap_colored, 0.4, 0)
+            st.image(overlay, caption="Grad-CAM: Model Focus Areas", use_column_width=True)
         else:
-            st.warning("Grad-CAM visualization unavailable")
+            st.warning("Could not generate Grad-CAM")
+    
+    with col2:
+        st.subheader("📦 Detection: 14 Abnormalities")
+        
+        with st.spinner("Detecting abnormalities..."):
+            results = det_model.predict(np.array(image), conf=0.25, verbose=False)
+        
+        res_img = results[0].plot()
+        st.image(res_img, caption="Detected Abnormalities with Bounding Boxes", use_column_width=True)
+        
+        if results[0].boxes is not None and len(results[0].boxes) > 0:
+            boxes = results[0].boxes
+            st.markdown("#### 🎯 Detected Abnormalities:")
+            
+            for i in range(min(5, len(boxes))):
+                cls_id = int(boxes.cls[i])
+                conf = float(boxes.conf[i])
+                st.write(f"**{i+1}. {det_model.names[cls_id]}**")
+                st.progress(conf)
+                st.write(f"Confidence: {conf:.2%}\n")
+            
+            st.markdown(f"**Total Detections**: {len(boxes)}")
+            st.markdown(f"**Average Confidence**: {float(boxes.conf.mean()):.2%}")
+        else:
+            st.success("✅ No abnormalities detected")
+            st.info("This X-ray appears normal based on the detection model.")
 
-# ====================== FOOTER ======================
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #666;'>
-    <h3>CliniScan Pro</h3>
-    <p>For educational & research purposes only • Not for clinical use</p>
-    <p>Developed by <strong>Vasu Chakravarthi</strong> • SRKR Engineering College • BTech AIML 2025</p>
-    <p><a href='https://github.com/vasuchakravarthi/cliniscan-lung-detection'>GitHub Repository</a></p>
+<div style='text-align: center; color: gray;'>
+<p><strong>⚠️ DISCLAIMER</strong></p>
+<p>This system is for <strong>educational and research purposes only</strong>.</p>
+<p>It should NOT be used for clinical diagnosis or medical decision-making.</p>
+<p>Always consult a qualified radiologist for medical interpretation of chest X-rays.</p>
+<hr>
+<p><strong>Vasu Chakravarthi</strong> | SRKR Engineering College | BTech AIML 2025</p>
+<p><a href='https://github.com/vasuchakravarthi/cliniscan-lung-detection'>GitHub Repository</a></p>
 </div>
 """, unsafe_allow_html=True)
