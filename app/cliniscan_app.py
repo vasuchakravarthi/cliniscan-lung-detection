@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+import altair as alt
 import torch
 import torch.nn as nn
 from PIL import Image
@@ -332,14 +334,30 @@ if uploaded_file:
             else:
                 st.warning("Grad-CAM generation failed.")
 
-    # === TAB 3: MODEL DETAILS ===
+# === TAB 3: MODEL DETAILS ===
     with tab3:
         st.markdown("### Class Probabilities")
-        chart_data = {
+        
+        # Create a specific DataFrame for the chart
+        df_chart = pd.DataFrame({
             "Class": ["Abnormal", "Normal"],
             "Probability": [probs[0][0].item(), probs[0][1].item()]
-        }
-        st.bar_chart(chart_data, x="Class", y="Probability", color=["#FF4B4B", "#00CC96"]) # Red/Green custom colors
+        })
+
+        # Create a custom chart with Red/Green colors
+        chart = alt.Chart(df_chart).mark_bar().encode(
+            x=alt.X('Class', sort=None),
+            y=alt.Y('Probability', title='Probability'),
+            # Define specific colors: Abnormal=Red, Normal=Green
+            color=alt.Color('Class', 
+                            scale=alt.Scale(domain=['Abnormal', 'Normal'], range=['#FF4B4B', '#00CC96']),
+                            legend=None),
+            tooltip=['Class', alt.Tooltip('Probability', format='.1%')]
+        ).properties(
+            height=300
+        )
+
+        st.altair_chart(chart, use_container_width=True)
 
         st.markdown("### System Disclaimer")
         st.warning("""
@@ -347,17 +365,6 @@ if uploaded_file:
         It is **not** a substitute for professional medical advice, diagnosis, or treatment. 
         False positives/negatives may occur.
         """)
-
-else:
-    # Empty State (Hero Section)
-    st.markdown("""
-    <div style="text-align: center; padding: 50px;">
-        <h2>👋 Welcome to CliniScan</h2>
-        <p>Upload a chest X-ray image from the sidebar or drag and drop it above to get started.</p>
-        <p style="color: gray; font-size: 0.9em;">Compatible with JPG, JPEG, and PNG files.</p>
-    </div>
-    """, unsafe_allow_html=True)
-
 # -----------------------------------------------------------------------------
 # FOOTER
 # -----------------------------------------------------------------------------
