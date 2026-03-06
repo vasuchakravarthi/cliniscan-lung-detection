@@ -7,24 +7,39 @@ import cv2
 from torchvision import transforms
 from ultralytics import YOLO
 import timm
+from torchvision.models.feature_extraction import create_feature_extractor
 import os
 import urllib.request
 
 # --------------------------------------------------
-# Page Configuration
+# Page configuration
 # --------------------------------------------------
 
 st.set_page_config(
-    page_title="CliniScan - Lung Abnormality Detection",
+    page_title="🩻 CliniScan - Lung Detection",
     layout="wide"
 )
 
 # --------------------------------------------------
-# HuggingFace Model URLs
+# Navigation state
 # --------------------------------------------------
 
-DET_URL = "https://huggingface.co/vasuchakravarthi/cliniscan-models/resolve/main/best.pt"
+if "page" not in st.session_state:
+    st.session_state.page = "login"
+
+
+def go_to(page):
+    st.session_state.page = page
+    st.rerun()
+
+
+# --------------------------------------------------
+# Model URLs (HuggingFace)
+# --------------------------------------------------
+
+DET_URL = "https://huggingface.co/vasuchakravarthi/cliniscan-models/resolve/main/best1.pt"
 CLF_URL = "https://huggingface.co/vasuchakravarthi/cliniscan-models/resolve/main/best_clf_model.pth"
+
 
 # --------------------------------------------------
 # Download Models
@@ -33,24 +48,22 @@ CLF_URL = "https://huggingface.co/vasuchakravarthi/cliniscan-models/resolve/main
 @st.cache_resource
 def download_models():
 
-    os.makedirs("models/detection", exist_ok=True)
-    os.makedirs("models/classification", exist_ok=True)
+    os.makedirs("models", exist_ok=True)
 
-    det_path = "models/detection/best.pt"
-    clf_path = "models/classification/best_clf_model.pth"
+    det_path = "models/best.pt"
+    clf_path = "models/best_clf_model.pth"
 
     if not os.path.exists(det_path):
-        with st.spinner("Downloading detection model..."):
-            urllib.request.urlretrieve(DET_URL, det_path)
+        urllib.request.urlretrieve(DET_URL, det_path)
 
     if not os.path.exists(clf_path):
-        with st.spinner("Downloading classification model..."):
-            urllib.request.urlretrieve(CLF_URL, clf_path)
+        urllib.request.urlretrieve(CLF_URL, clf_path)
 
     return det_path, clf_path
 
 
 det_path, clf_path = download_models()
+
 
 # --------------------------------------------------
 # Classification Model
@@ -58,13 +71,13 @@ det_path, clf_path = download_models()
 
 class EfficientNetClassifier(nn.Module):
 
-    def __init__(self, num_classes=2):
+    def __init__(self):
         super().__init__()
 
         self.model = timm.create_model(
             "efficientnet_b3",
             pretrained=False,
-            num_classes=num_classes
+            num_classes=2
         )
 
     def forward(self, x):
@@ -100,135 +113,235 @@ def load_classifier():
 
 @st.cache_resource
 def load_detector():
-
-    model = YOLO(det_path)
-
-    return model
+    return YOLO(det_path)
 
 
 clf_model = load_classifier()
 det_model = load_detector()
 
+
 # --------------------------------------------------
-# Image Preprocessing
+# GradCAM
+# --------------------------------------------------
+
+def generate_gradcam(model, img_tensor):
+
+    feature_extractor = create_feature_extractor(
+        model.model,
+        {"conv_head": "feat"}
+    )
+
+    with torch.no_grad():
+        img_tensor = img_tensor.unsqueeze(0)
+        features = feature_extractor(img_tensor)
+
+    feat_map = features["feat"].squeeze().mean(dim=0).cpu().numpy()
+
+    heatmap = cv2.resize(feat_map, (512,512))
+    heatmap = np.maximum(heatmap,0)
+
+    if heatmap.max() != 0:
+        heatmap /= heatmap.max()
+
+    return heatmap
+
+
+# --------------------------------------------------
+# Image transform
 # --------------------------------------------------
 
 transform = transforms.Compose([
-    transforms.Resize((512, 512)),
+    transforms.Resize((512,512)),
     transforms.ToTensor(),
     transforms.Normalize(
-        [0.485, 0.456, 0.406],
-        [0.229, 0.224, 0.225]
+        [0.485,0.456,0.406],
+        [0.229,0.224,0.225]
     )
 ])
 
+
 # --------------------------------------------------
-# UI
+# LOGIN PAGE
 # --------------------------------------------------
 
-st.title("🩻 CliniScan: AI Lung Abnormality Detection")
+def login_page():
 
-st.markdown(
-"""
-Upload a **Chest X-ray image** to:
+    st.title("🩻 CliniScan AI")
 
-• Detect **14 lung abnormalities** using YOLOv8  
-• Classify image as **Normal / Abnormal** using EfficientNet-B3
-"""
-)
+    st.subheader("Login")
 
-uploaded_file = st.file_uploader(
-    "Upload Chest X-ray",
-    type=["jpg", "jpeg", "png"]
-)
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
 
-if uploaded_file:
+    col1, col2 = st.columns(2)
 
-    image = Image.open(uploaded_file).convert("RGB")
+    with col1:
+        if st.button("Login"):
 
-    st.image(image, caption="Uploaded X-ray", use_container_width=True)
+            if username == "admin" and password == "cliniscan":
+                go_to("dashboard")
+            else:
+                st.error("Invalid credentials")
 
-    img_tensor = transform(image)
+    with col2:
+        if st.button("Free Trial"):
+            go_to("trial")
 
-    # --------------------------------------------------
-    # Classification
-    # --------------------------------------------------
 
-    st.subheader("Classification Result")
+# --------------------------------------------------
+# FREE TRIAL PAGE
+# --------------------------------------------------
 
-    with torch.no_grad():
+def trial_page():
 
-        preds = clf_model(img_tensor.unsqueeze(0))
+    st.title("🧪 Free Trial")
 
-        probs = torch.nn.functional.softmax(preds, dim=1)
+    st.info("You can test CliniScan with one X-ray image.")
 
-        pred_class = torch.argmax(probs).item()
+    if st.button("Start Trial"):
+        go_to("dashboard")
 
-    class_names = ["Abnormal", "Normal"]
+    if st.button("Back"):
+        go_to("login")
 
-    st.write(
-        f"Prediction: **{class_names[pred_class]}**"
+
+# --------------------------------------------------
+# DASHBOARD PAGE
+# --------------------------------------------------
+
+def dashboard_page():
+
+    st.title("🩻 CliniScan: AI Lung Abnormality Detection")
+
+    with st.sidebar:
+
+        st.header("Detected Abnormalities")
+
+        abnormalities = [
+            "Aortic enlargement",
+            "Atelectasis",
+            "Calcification",
+            "Cardiomegaly",
+            "Consolidation",
+            "ILD",
+            "Infiltration",
+            "Lung Opacity",
+            "Nodule/Mass",
+            "Other lesion",
+            "Pleural effusion",
+            "Pleural thickening",
+            "Pneumothorax",
+            "Pulmonary fibrosis"
+        ]
+
+        for a in abnormalities:
+            st.write("•", a)
+
+        st.markdown("---")
+
+        if st.button("Logout"):
+            go_to("login")
+
+    uploaded_file = st.file_uploader(
+        "Upload Chest X-ray",
+        type=["jpg","png","jpeg"]
     )
 
-    st.write(
-        f"Confidence: **{probs[0][pred_class].item():.2%}**"
-    )
+    if uploaded_file:
 
-    # --------------------------------------------------
-    # Detection
-    # --------------------------------------------------
+        image = Image.open(uploaded_file).convert("RGB")
 
-    st.subheader("Detected Abnormalities")
+        st.image(image, caption="Uploaded X-ray", use_container_width=True)
 
-    with st.spinner("Running detection..."):
+        img_tensor = transform(image)
 
-        results = det_model.predict(
-            source=np.array(image),
-            conf=0.25,
-            verbose=False
-        )
+        col1, col2 = st.columns(2)
 
-    result_img = results[0].plot()
+        # -------------------------
+        # Classification
+        # -------------------------
 
-    st.image(
-        result_img,
-        caption="Detection Results",
-        use_container_width=True
-    )
+        with col1:
 
-    if results[0].boxes is not None:
+            st.subheader("Classification")
 
-        boxes = results[0].boxes
+            with torch.no_grad():
 
-        st.write("Total detections:", len(boxes))
+                preds = clf_model(img_tensor.unsqueeze(0))
+                probs = torch.nn.functional.softmax(preds, dim=1)
 
-        for i in range(len(boxes)):
+                pred_class = torch.argmax(probs).item()
 
-            cls_id = int(boxes.cls[i])
-            conf = float(boxes.conf[i])
+            classes = ["Abnormal","Normal"]
 
-            st.write(
-                f"{det_model.names[cls_id]} - {conf:.2%}"
+            st.write("Prediction:", classes[pred_class])
+            st.write("Confidence:", f"{probs[0][pred_class]:.2%}")
+
+            # GradCAM
+
+            st.subheader("Grad-CAM")
+
+            heatmap = generate_gradcam(clf_model, img_tensor)
+
+            heatmap = cv2.applyColorMap(
+                np.uint8(255*heatmap),
+                cv2.COLORMAP_JET
             )
 
-    else:
+            heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
-        st.success("No abnormalities detected")
+            original = np.array(image.resize((512,512)))
+
+            overlay = cv2.addWeighted(original,0.6,heatmap,0.4,0)
+
+            st.image(overlay)
+
+        # -------------------------
+        # Detection
+        # -------------------------
+
+        with col2:
+
+            st.subheader("Detection")
+
+            results = det_model.predict(
+                source=np.array(image),
+                conf=0.25,
+                verbose=False
+            )
+
+            res_img = results[0].plot()
+
+            st.image(res_img, use_container_width=True)
+
+            if results[0].boxes is not None:
+
+                boxes = results[0].boxes
+
+                st.write("Total detections:", len(boxes))
+
+                for i in range(len(boxes)):
+
+                    cls = int(boxes.cls[i])
+                    conf = float(boxes.conf[i])
+
+                    st.write(
+                        f"{det_model.names[cls]} - {conf:.2%}"
+                    )
+
+            else:
+                st.success("No abnormalities detected")
+
 
 # --------------------------------------------------
-# Footer
+# ROUTER
 # --------------------------------------------------
 
-st.markdown("---")
+if st.session_state.page == "login":
+    login_page()
 
-st.markdown(
-"""
-⚠️ **Disclaimer**
+elif st.session_state.page == "trial":
+    trial_page()
 
-This system is for **educational and research purposes only**.  
-It should **not be used for clinical diagnosis**.
-
-Developer: **Vasu Chakravarthi**  
-SRKR Engineering College
-"""
-)
+elif st.session_state.page == "dashboard":
+    dashboard_page()
