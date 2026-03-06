@@ -6,5 +6,6 @@ timm
 opencv-python-headless
 pillow
 numpy
+pandas
 matplotlib
-gdown
+scikit-learn
