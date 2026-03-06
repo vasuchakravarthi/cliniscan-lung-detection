@@ -8,23 +8,27 @@ from torchvision import transforms
 from ultralytics import YOLO
 import timm
 import os
-import gdown
+import urllib.request
+
+# --------------------------------------------------
+# Page Configuration
+# --------------------------------------------------
 
 st.set_page_config(
-    page_title="CliniScan - Lung Detection",
+    page_title="CliniScan - Lung Abnormality Detection",
     layout="wide"
 )
 
-# ----------------------------
-# GOOGLE DRIVE MODEL IDS
-# ----------------------------
+# --------------------------------------------------
+# HuggingFace Model URLs
+# --------------------------------------------------
 
-DETECTION_MODEL_ID = "1RN903UCBYkkY9JftW9NauOZbCdFTLc1a"
-CLASSIFICATION_MODEL_ID = "1e2xHBMKshkPcaUDJSLLF-dJe2ohQIhk_"
+DET_URL = "https://huggingface.co/vasuchakravarthi/cliniscan-models/resolve/main/best.pt"
+CLF_URL = "https://huggingface.co/vasuchakravarthi/cliniscan-models/resolve/main/best_clf_model.pth"
 
-# ----------------------------
-# DOWNLOAD MODELS
-# ----------------------------
+# --------------------------------------------------
+# Download Models
+# --------------------------------------------------
 
 @st.cache_resource
 def download_models():
@@ -36,24 +40,27 @@ def download_models():
     clf_path = "models/classification/best_clf_model.pth"
 
     if not os.path.exists(det_path):
-        url = f"https://drive.google.com/uc?export=download&id={DETECTION_MODEL_ID}"
-        gdown.download(url, det_path, quiet=False)
+        with st.spinner("Downloading detection model..."):
+            urllib.request.urlretrieve(DET_URL, det_path)
 
     if not os.path.exists(clf_path):
-        url = f"https://drive.google.com/uc?export=download&id={CLASSIFICATION_MODEL_ID}"
-        gdown.download(url, clf_path, quiet=False)
+        with st.spinner("Downloading classification model..."):
+            urllib.request.urlretrieve(CLF_URL, clf_path)
 
     return det_path, clf_path
 
+
 det_path, clf_path = download_models()
 
-# ----------------------------
-# CLASSIFIER MODEL
-# ----------------------------
+# --------------------------------------------------
+# Classification Model
+# --------------------------------------------------
 
 class EfficientNetClassifier(nn.Module):
+
     def __init__(self, num_classes=2):
         super().__init__()
+
         self.model = timm.create_model(
             "efficientnet_b3",
             pretrained=False,
@@ -63,6 +70,7 @@ class EfficientNetClassifier(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+
 @st.cache_resource
 def load_classifier():
 
@@ -70,7 +78,11 @@ def load_classifier():
 
     model = EfficientNetClassifier()
 
-    checkpoint = torch.load(clf_path, map_location=device)
+    checkpoint = torch.load(
+        clf_path,
+        map_location=device,
+        weights_only=False
+    )
 
     if isinstance(checkpoint, dict) and "model" in checkpoint:
         model.load_state_dict(checkpoint["model"])
@@ -81,55 +93,68 @@ def load_classifier():
 
     return model
 
-# ----------------------------
-# DETECTION MODEL
-# ----------------------------
+
+# --------------------------------------------------
+# Detection Model
+# --------------------------------------------------
 
 @st.cache_resource
 def load_detector():
+
     model = YOLO(det_path)
+
     return model
+
 
 clf_model = load_classifier()
 det_model = load_detector()
 
-# ----------------------------
-# IMAGE TRANSFORM
-# ----------------------------
+# --------------------------------------------------
+# Image Preprocessing
+# --------------------------------------------------
 
 transform = transforms.Compose([
-    transforms.Resize((512,512)),
+    transforms.Resize((512, 512)),
     transforms.ToTensor(),
     transforms.Normalize(
-        [0.485,0.456,0.406],
-        [0.229,0.224,0.225]
+        [0.485, 0.456, 0.406],
+        [0.229, 0.224, 0.225]
     )
 ])
 
-# ----------------------------
+# --------------------------------------------------
 # UI
-# ----------------------------
+# --------------------------------------------------
 
-st.title("🩻 CliniScan: Lung Abnormality Detection")
+st.title("🩻 CliniScan: AI Lung Abnormality Detection")
 
-st.write(
+st.markdown(
 """
-Upload a **Chest X-ray image** to detect lung abnormalities using AI.
+Upload a **Chest X-ray image** to:
+
+• Detect **14 lung abnormalities** using YOLOv8  
+• Classify image as **Normal / Abnormal** using EfficientNet-B3
 """
 )
 
 uploaded_file = st.file_uploader(
-    "Upload X-ray",
-    type=["jpg","jpeg","png"]
+    "Upload Chest X-ray",
+    type=["jpg", "jpeg", "png"]
 )
 
 if uploaded_file:
 
     image = Image.open(uploaded_file).convert("RGB")
 
-    st.image(image, use_container_width=True)
+    st.image(image, caption="Uploaded X-ray", use_container_width=True)
 
     img_tensor = transform(image)
+
+    # --------------------------------------------------
+    # Classification
+    # --------------------------------------------------
+
+    st.subheader("Classification Result")
 
     with torch.no_grad():
 
@@ -139,35 +164,71 @@ if uploaded_file:
 
         pred_class = torch.argmax(probs).item()
 
-    class_names = ["Abnormal","Normal"]
+    class_names = ["Abnormal", "Normal"]
 
-    st.subheader("Classification Result")
-
-    st.write("Prediction:", class_names[pred_class])
-    st.write("Confidence:", float(probs[0][pred_class]))
-
-    st.subheader("Detection")
-
-    results = det_model.predict(
-        source=np.array(image),
-        conf=0.25,
-        verbose=False
+    st.write(
+        f"Prediction: **{class_names[pred_class]}**"
     )
+
+    st.write(
+        f"Confidence: **{probs[0][pred_class].item():.2%}**"
+    )
+
+    # --------------------------------------------------
+    # Detection
+    # --------------------------------------------------
+
+    st.subheader("Detected Abnormalities")
+
+    with st.spinner("Running detection..."):
+
+        results = det_model.predict(
+            source=np.array(image),
+            conf=0.25,
+            verbose=False
+        )
 
     result_img = results[0].plot()
 
-    st.image(result_img, use_container_width=True)
+    st.image(
+        result_img,
+        caption="Detection Results",
+        use_container_width=True
+    )
 
     if results[0].boxes is not None:
 
         boxes = results[0].boxes
 
-        st.write("Detections:", len(boxes))
+        st.write("Total detections:", len(boxes))
+
+        for i in range(len(boxes)):
+
+            cls_id = int(boxes.cls[i])
+            conf = float(boxes.conf[i])
+
+            st.write(
+                f"{det_model.names[cls_id]} - {conf:.2%}"
+            )
 
     else:
 
         st.success("No abnormalities detected")
 
+# --------------------------------------------------
+# Footer
+# --------------------------------------------------
+
 st.markdown("---")
 
-st.write("Developer: Vasu Chakravarthi")
+st.markdown(
+"""
+⚠️ **Disclaimer**
+
+This system is for **educational and research purposes only**.  
+It should **not be used for clinical diagnosis**.
+
+Developer: **Vasu Chakravarthi**  
+SRKR Engineering College
+"""
+)
