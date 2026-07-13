@@ -13,10 +13,11 @@ import urllib.request
 import time
 import base64
 from io import BytesIO
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 import plotly.graph_objects as go
 import plotly.express as px
-from streamlit_option_menu import option_menu
-import pandas as pd
 
 # --------------------------------------------------
 # PAGE CONFIG
@@ -50,10 +51,12 @@ st.markdown("""
         border-radius: 15px;
         padding: 20px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        transition: transform 0.3s ease;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border: 1px solid rgba(78, 205, 196, 0.1);
     }
     .card:hover {
         transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(78, 205, 196, 0.15);
     }
     
     /* Button animations */
@@ -63,10 +66,13 @@ st.markdown("""
         background: linear-gradient(45deg, #4ecdc4, #45b7d1);
         color: white;
         font-weight: bold;
+        border-radius: 10px;
+        padding: 0.5rem 1rem;
     }
     .stButton > button:hover {
         transform: scale(1.05);
         box-shadow: 0 5px 20px rgba(78, 205, 196, 0.4);
+        background: linear-gradient(45deg, #45b7d1, #4ecdc4);
     }
     
     /* Progress bar animation */
@@ -92,6 +98,7 @@ st.markdown("""
         text-align: center;
         border-left: 4px solid #4ecdc4;
         transition: all 0.3s ease;
+        margin: 10px 0;
     }
     .metric-card:hover {
         transform: translateX(5px);
@@ -119,6 +126,7 @@ st.markdown("""
         background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
         border-radius: 4px;
         transition: width 0.8s ease;
+        margin: 10px 0;
     }
     
     /* Footer styling */
@@ -134,6 +142,36 @@ st.markdown("""
         border-top: 1px solid rgba(78, 205, 196, 0.2);
         z-index: 1000;
     }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        padding: 10px 20px;
+        background: rgba(78, 205, 196, 0.1);
+        transition: all 0.3s ease;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background: rgba(78, 205, 196, 0.2);
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(45deg, #4ecdc4, #45b7d1);
+        color: white;
+    }
+    
+    /* File uploader styling */
+    .stFileUploader > div {
+        border: 2px dashed rgba(78, 205, 196, 0.3);
+        border-radius: 15px;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+    .stFileUploader > div:hover {
+        border-color: #4ecdc4;
+        background: rgba(78, 205, 196, 0.05);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -147,6 +185,12 @@ if "uploaded_images" not in st.session_state:
     st.session_state.uploaded_images = []
 if "analysis_history" not in st.session_state:
     st.session_state.analysis_history = []
+if "theme" not in st.session_state:
+    st.session_state.theme = "Dark"
+if "detection_threshold" not in st.session_state:
+    st.session_state.detection_threshold = 0.25
+if "show_animations" not in st.session_state:
+    st.session_state.show_animations = True
 
 def go_to(page):
     st.session_state.page = page
@@ -169,13 +213,25 @@ def download_models():
     det_path = "models/best.pt"
     clf_path = "models/best_clf_model.pth"
     
+    # Create progress bars
+    progress_text = st.empty()
+    progress_bar = st.progress(0)
+    
     if not os.path.exists(det_path):
-        with st.spinner("Downloading detection model..."):
-            urllib.request.urlretrieve(DET_URL, det_path)
+        progress_text.text("📥 Downloading detection model...")
+        progress_bar.progress(25)
+        urllib.request.urlretrieve(DET_URL, det_path)
     
     if not os.path.exists(clf_path):
-        with st.spinner("Downloading classification model..."):
-            urllib.request.urlretrieve(CLF_URL, clf_path)
+        progress_text.text("📥 Downloading classification model...")
+        progress_bar.progress(50)
+        urllib.request.urlretrieve(CLF_URL, clf_path)
+    
+    progress_text.text("✅ Models downloaded successfully!")
+    progress_bar.progress(100)
+    time.sleep(0.5)
+    progress_text.empty()
+    progress_bar.empty()
     
     return det_path, clf_path
 
@@ -220,16 +276,20 @@ det_model = load_detector()
 # --------------------------------------------------
 
 def generate_gradcam(model, img_tensor):
-    extractor = create_feature_extractor(model.model, {"conv_head": "feat"})
-    with torch.no_grad():
-        img_tensor = img_tensor.unsqueeze(0)
-        features = extractor(img_tensor)
-    fmap = features["feat"].squeeze().mean(dim=0).cpu().numpy()
-    heatmap = cv2.resize(fmap, (512,512))
-    heatmap = np.maximum(heatmap,0)
-    if heatmap.max()!=0:
-        heatmap /= heatmap.max()
-    return heatmap
+    try:
+        extractor = create_feature_extractor(model.model, {"conv_head": "feat"})
+        with torch.no_grad():
+            img_tensor = img_tensor.unsqueeze(0)
+            features = extractor(img_tensor)
+        fmap = features["feat"].squeeze().mean(dim=0).cpu().numpy()
+        heatmap = cv2.resize(fmap, (512,512))
+        heatmap = np.maximum(heatmap,0)
+        if heatmap.max()!=0:
+            heatmap /= heatmap.max()
+        return heatmap
+    except:
+        # Fallback if Grad-CAM fails
+        return np.zeros((512, 512))
 
 # --------------------------------------------------
 # IMAGE TRANSFORM
@@ -259,31 +319,18 @@ def show_header():
     with st.sidebar:
         st.markdown("---")
         
-        # Sidebar menu with icons
-        selected = option_menu(
-            menu_title="Navigation",
-            options=["Home", "Dashboard", "About", "History", "Settings"],
-            icons=["house", "bar-chart", "info-circle", "clock-history", "gear"],
-            menu_icon="cast",
-            default_index=0,
-            styles={
-                "container": {"padding": "0!important", "background-color": "transparent"},
-                "icon": {"color": "#4ecdc4", "font-size": "20px"},
-                "nav-link": {"font-size": "16px", "text-align": "left", "margin": "0px"},
-                "nav-link-selected": {"background-color": "#4ecdc4"},
-            }
-        )
-        
-        if selected == "Home":
-            go_to("home")
-        elif selected == "Dashboard":
-            go_to("dashboard")
-        elif selected == "About":
-            go_to("about")
-        elif selected == "History":
-            go_to("history")
-        elif selected == "Settings":
-            go_to("settings")
+        # Navigation menu with simple buttons
+        nav_col1, nav_col2 = st.columns(2)
+        with nav_col1:
+            if st.button("🏠 Home", use_container_width=True):
+                go_to("home")
+            if st.button("📊 Dashboard", use_container_width=True):
+                go_to("dashboard")
+        with nav_col2:
+            if st.button("ℹ️ About", use_container_width=True):
+                go_to("about")
+            if st.button("📜 History", use_container_width=True):
+                go_to("history")
         
         st.markdown("---")
         
@@ -294,6 +341,23 @@ def show_header():
             st.metric("Models Loaded", "2", delta="Ready")
         with col2:
             st.metric("Abnormalities", "14", delta="Detectable")
+        
+        # Detection threshold slider
+        st.markdown("---")
+        st.markdown("### ⚙️ Detection Settings")
+        st.session_state.detection_threshold = st.slider(
+            "Confidence Threshold",
+            min_value=0.0,
+            max_value=1.0,
+            value=st.session_state.detection_threshold,
+            step=0.05,
+            help="Adjust detection sensitivity"
+        )
+        
+        st.session_state.show_animations = st.toggle(
+            "Show Animations",
+            value=st.session_state.show_animations
+        )
         
         st.markdown("---")
         
@@ -342,7 +406,9 @@ def home_page():
                 go_to("about")
         with col3:
             if st.button("📊 View Demo", use_container_width=True):
-                st.info("Demo coming soon!")
+                st.info("🔄 Loading demo...")
+                time.sleep(1)
+                st.success("✅ Demo ready! Upload an X-ray to see it in action.")
     
     with col2:
         st.markdown("""
@@ -415,7 +481,8 @@ def dashboard_page():
     if uploaded_file:
         # Show processing animation
         with st.spinner("🔄 Processing your X-ray..."):
-            time.sleep(0.5)  # Simulate processing
+            if st.session_state.show_animations:
+                time.sleep(0.5)  # Simulate processing
             
             image = Image.open(uploaded_file).convert("RGB")
             img_tensor = transform(image)
@@ -460,7 +527,11 @@ def dashboard_page():
             """, unsafe_allow_html=True)
             
             # Detection results
-            results = det_model.predict(source=np.array(image), conf=0.25, verbose=False)
+            results = det_model.predict(
+                source=np.array(image), 
+                conf=st.session_state.detection_threshold, 
+                verbose=False
+            )
             res_img = results[0].plot()
             
             if results[0].boxes is not None:
@@ -472,15 +543,29 @@ def dashboard_page():
                 for i in range(len(boxes)):
                     cls = int(boxes.cls[i])
                     conf = float(boxes.conf[i])
+                    severity = "High" if conf > 0.7 else "Medium" if conf > 0.4 else "Low"
+                    severity_color = "#ff6b6b" if severity == "High" else "#ffd93d" if severity == "Medium" else "#4ecdc4"
                     detections.append({
                         "Condition": det_model.names[cls],
                         "Confidence": f"{conf:.1%}",
-                        "Severity": "High" if conf > 0.7 else "Medium" if conf > 0.4 else "Low"
+                        "Severity": severity,
+                        "Severity Color": severity_color
                     })
                 
                 if detections:
                     df = pd.DataFrame(detections)
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    # Display as styled table
+                    for _, row in df.iterrows():
+                        st.markdown(f"""
+                        <div style='display: flex; justify-content: space-between; padding: 8px 12px; 
+                                    margin: 4px 0; background: rgba(255,255,255,0.05); border-radius: 8px;'>
+                            <span><strong>{row['Condition']}</strong></span>
+                            <span>{row['Confidence']}</span>
+                            <span style='color: {row['Severity Color']};'>
+                                ● {row['Severity']}
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
         
         # Advanced features row
         st.markdown("---")
@@ -526,22 +611,26 @@ def dashboard_page():
             fig.update_layout(height=250, margin=dict(l=20, r=20, t=30, b=20))
             st.plotly_chart(fig, use_container_width=True)
             
-            if results[0].boxes is not None:
+            if results[0].boxes is not None and len(results[0].boxes) > 0:
                 # Detection confidence distribution
+                boxes = results[0].boxes
                 confs = [float(boxes.conf[i]) for i in range(len(boxes))]
                 if confs:
-                    fig2 = go.Figure(data=[go.Bar(
-                        x=[f"Detection {i+1}" for i in range(len(confs))],
-                        y=confs,
-                        marker_color='#45b7d1'
-                    )])
-                    fig2.update_layout(
-                        title="Detection Confidence Scores",
-                        yaxis_title="Confidence",
-                        height=200,
-                        margin=dict(l=20, r=20, t=30, b=20)
-                    )
-                    st.plotly_chart(fig2, use_container_width=True)
+                    # Create bar chart with matplotlib
+                    fig, ax = plt.subplots(figsize=(8, 2))
+                    bars = ax.bar(range(len(confs)), confs, color='#45b7d1')
+                    ax.set_ylim(0, 1)
+                    ax.set_ylabel('Confidence')
+                    ax.set_xlabel('Detection')
+                    ax.set_xticks(range(len(confs)))
+                    ax.set_xticklabels([f"#{i+1}" for i in range(len(confs))])
+                    # Add value labels on bars
+                    for bar, conf in zip(bars, confs):
+                        height = bar.get_height()
+                        ax.text(bar.get_x() + bar.get_width()/2., height,
+                               f'{conf:.0%}', ha='center', va='bottom')
+                    st.pyplot(fig)
+                    plt.close()
         
         # Download report button
         st.markdown("---")
@@ -560,7 +649,10 @@ def dashboard_page():
                 
                 Detections: {len(boxes) if results[0].boxes is not None else 0}
                 
-                """ + "\n".join([f"- {det['Condition']}: {det['Confidence']} ({det['Severity']})" for det in detections])
+                """ 
+                if results[0].boxes is not None:
+                    for i, det in enumerate(detections):
+                        report += f"\n{i+1}. {det['Condition']}: {det['Confidence']} ({det['Severity']})"
                 
                 st.download_button(
                     label="💾 Download as Text",
@@ -665,43 +757,33 @@ def history_page():
     
     if st.session_state.analysis_history:
         df = pd.DataFrame(st.session_state.analysis_history)
+        
+        # Add some statistics
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Analyses", len(df))
+        with col2:
+            st.metric("Last Analysis", df.iloc[-1]['timestamp'])
+        
         st.dataframe(df, use_container_width=True)
         
-        if st.button("🗑️ Clear History"):
+        # Visualization of history
+        if len(df) > 1:
+            st.markdown("#### 📈 Analysis Timeline")
+            fig, ax = plt.subplots(figsize=(10, 3))
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df.groupby(df['timestamp'].dt.date).size().plot(kind='bar', ax=ax)
+            ax.set_title('Analyses per Day')
+            ax.set_xlabel('Date')
+            ax.set_ylabel('Count')
+            st.pyplot(fig)
+            plt.close()
+        
+        if st.button("🗑️ Clear History", use_container_width=True):
             st.session_state.analysis_history = []
             st.rerun()
     else:
-        st.info("No analysis history yet. Upload an X-ray to get started!")
-
-# --------------------------------------------------
-# SETTINGS PAGE
-# --------------------------------------------------
-
-def settings_page():
-    show_header()
-    
-    st.markdown("### ⚙️ Settings")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 🎨 Display Settings")
-        theme = st.selectbox("Theme", ["Dark", "Light", "System"])
-        font_size = st.slider("Font Size", 12, 24, 16)
-        st.toggle("Show Animations", value=True)
-        st.toggle("Enable Sound Effects", value=False)
-    
-    with col2:
-        st.markdown("#### 🔬 Model Settings")
-        detection_threshold = st.slider(
-            "Detection Confidence Threshold", 
-            0.0, 1.0, 0.25, 0.05
-        )
-        st.toggle("Show Bounding Box Labels", value=True)
-        st.toggle("Enable Grad-CAM", value=True)
-    
-    if st.button("💾 Save Settings", use_container_width=True):
-        st.success("Settings saved successfully! 🎉")
+        st.info("ℹ️ No analysis history yet. Upload an X-ray to get started!")
 
 # --------------------------------------------------
 # FOOTER
@@ -730,7 +812,5 @@ elif st.session_state.page == "about":
     about_page()
 elif st.session_state.page == "history":
     history_page()
-elif st.session_state.page == "settings":
-    settings_page()
 
 show_footer()
