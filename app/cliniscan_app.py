@@ -443,4 +443,4 @@ elif st.session_state.page=="trial":
 elif st.session_state.page=="dashboard":
     dashboard_page()
     
-can we make these more interactive website it is hosted from streamlit
+#can we make these more interactive website it is hosted from streamlit
