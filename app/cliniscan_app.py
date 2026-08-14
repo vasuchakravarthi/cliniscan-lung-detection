@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from PIL import Image
 import numpy as np
-import cv2
 from torchvision import transforms
 from ultralytics import YOLO
 import timm
@@ -18,8 +17,7 @@ import urllib.request
 st.set_page_config(
     page_title="🩻 CliniScan - Lung Detection",
     page_icon="🩻",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # --------------------------------------------------
@@ -72,7 +70,7 @@ def show_header():
         10. Other lesion  
         11. Pleural effusion  
         12. Pleural thickening  
-        13. Pneumothorax ⚠️  
+        13. Pneumothorax  
         14. Pulmonary fibrosis  
 
         **Classification Classes**
@@ -80,18 +78,12 @@ def show_header():
         - Abnormal (Class 0)
         - Normal (Class 1)
 
-        **Performance**
-        - Classification: 95.20% accuracy
-        - Detection: mAP@0.5 = 0.4305
-        - Critical finding recall: 67%
-
         **⚠️ Disclaimer**: Educational purposes only.
         """)
 
         st.markdown("---")
         st.markdown("**Developer**: Vasu Chakravarthi")
         st.markdown("**Institution**: SRKR Engineering College")
-        st.markdown("**Program**: BTech AIML 2025")
 
         st.markdown(
             "[GitHub Repository](https://github.com/vasuchakravarthi/cliniscan-lung-detection)"
@@ -244,7 +236,7 @@ if clf_model is None or det_model is None:
 
 
 # --------------------------------------------------
-# GRADCAM
+# GRADCAM (USING PILLOW INSTEAD OF OPENCV)
 # --------------------------------------------------
 
 def generate_gradcam(model, img_tensor):
@@ -263,14 +255,17 @@ def generate_gradcam(model, img_tensor):
 
         fmap = features["feat"].squeeze().mean(dim=0).cpu().numpy()
 
-        # CHANGE: 1024×1024 to match training
-        heatmap = cv2.resize(fmap, (1024,1024))
-        heatmap = np.maximum(heatmap,0)
-
-        if heatmap.max()!=0:
-            heatmap /= heatmap.max()
-
-        return heatmap
+        # Resize to 1024×1024
+        heatmap = np.uint8(255 * fmap / fmap.max())
+        heatmap_pil = Image.fromarray(heatmap, mode='L')
+        heatmap_pil = heatmap_pil.resize((1024, 1024), Image.Resampling.LANCZOS)
+        
+        # Apply colormap using matplotlib
+        import matplotlib.cm as cm
+        heatmap_colored = cm.jet(heatmap_pil)[:, :, :3]
+        heatmap_colored = np.uint8(255 * heatmap_colored)
+        
+        return heatmap_colored
         
     except Exception as e:
         st.error(f"❌ Grad-CAM error: {e}")
@@ -281,7 +276,6 @@ def generate_gradcam(model, img_tensor):
 # IMAGE TRANSFORM
 # --------------------------------------------------
 
-# CHANGE: 1024×1024 to match training
 transform = transforms.Compose([
     transforms.Resize((1024,1024)),
     transforms.ToTensor(),
@@ -392,7 +386,7 @@ def dashboard_page():
 
         st.image(image, caption="📷 Uploaded X-ray", use_container_width=True)
 
-        # CHANGE: 1024×1024 to match training
+        # Resize to 1024×1024
         img_tensor = transform(image)
 
         col1,col2 = st.columns(2)
@@ -426,18 +420,13 @@ def dashboard_page():
             heatmap = generate_gradcam(clf_model,img_tensor)
 
             if heatmap is not None:
-                heatmap=cv2.applyColorMap(
-                    np.uint8(255*heatmap),
-                    cv2.COLORMAP_JET
-                )
-
-                heatmap=cv2.cvtColor(heatmap,cv2.COLOR_BGR2RGB)
-
-                # CHANGE: 1024×1024 to match training
-                original=np.array(image.resize((1024,1024)))
-
-                overlay=cv2.addWeighted(original,0.6,heatmap,0.4,0)
-
+                # Create overlay using Pillow
+                original = image.resize((1024, 1024), Image.Resampling.LANCZOS)
+                heatmap_pil = Image.fromarray(heatmap)
+                
+                # Blend images
+                overlay = Image.blend(original, heatmap_pil, alpha=0.4)
+                
                 st.image(overlay, caption="Grad-CAM: Model Focus Areas", use_container_width=True)
             else:
                 st.warning("Could not generate Grad-CAM")
